@@ -1,0 +1,264 @@
+'use client';
+
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { api, cartLines, shapeCategory, shapeProduct } from '@/lib/apiClient';
+import {
+  mergeGuestBag,
+  readGuestCart,
+  readGuestWishlist,
+  writeGuestCart,
+  writeGuestWishlist,
+} from '@/lib/guestBag';
+
+const CatalogContext = createContext(null);
+
+async function resolveProducts(ids, catalog) {
+  const map = new Map(catalog.map((product) => [String(product.id), product]));
+  const missing = [...new Set(ids.map(String))].filter((id) => id && !map.has(id));
+  await Promise.all(
+    missing.map(async (id) => {
+      try {
+        const product = shapeProduct(await api(`/api/products/${id}`));
+        map.set(product.id, product);
+      } catch {
+        /* product removed */
+      }
+    }),
+  );
+  return map;
+}
+
+export function CatalogProvider({ children }) {
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [cartItems, setCartItems] = useState([]);
+  const [wishlistIds, setWishlistIds] = useState([]);
+  const [wishlistItems, setWishlistItems] = useState([]);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const userRef = useRef(null);
+  const productsRef = useRef([]);
+  const snapshotsRef = useRef(new Map());
+
+  const remember = (product) => {
+    if (!product) return;
+    const id = String(product.id || product._id || '');
+    if (!id) return;
+    snapshotsRef.current.set(id, { ...product, id });
+  };
+
+  const applyGuest = async (catalog, known = []) => {
+    known.filter(Boolean).forEach(remember);
+    const stored = readGuestCart();
+    const wish = readGuestWishlist();
+    const map = await resolveProducts(
+      [...stored.map((row) => row.productId), ...wish],
+      [...catalog, ...snapshotsRef.current.values()],
+    );
+    map.forEach((product) => remember(product));
+    setCartItems(
+      stored
+        .map((row) => {
+          const product = map.get(row.productId);
+          if (!product) return null;
+          return { ...product, qty: row.qty, lineId: product.id };
+        })
+        .filter(Boolean),
+    );
+    const saved = wish.filter((id) => map.has(id));
+    setWishlistIds(saved);
+    setWishlistItems(saved.map((id) => map.get(id)));
+  };
+
+  const applyServer = async () => {
+    const [cart, wishlist] = await Promise.all([api('/api/cart'), api('/api/wishlist')]);
+    setCartItems(cartLines(cart));
+    const saved = (wishlist.products || []).map(shapeProduct);
+    setWishlistItems(saved);
+    setWishlistIds(saved.map((product) => product.id));
+  };
+
+  const refreshSession = async () => {
+    let me = null;
+    try {
+      me = await api('/api/auth/me');
+    } catch {
+      me = null;
+    }
+    userRef.current = me;
+    setUser(me);
+    if (me && (readGuestCart().length || readGuestWishlist().length)) {
+      await mergeGuestBag();
+    }
+    if (me) await applyServer();
+    else await applyGuest(productsRef.current);
+    setAuthReady(true);
+    return me;
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [productData, categoryData] = await Promise.all([
+        api('/api/products?limit=100').catch(() => ({ products: [] })),
+        api('/api/categories').catch(() => []),
+      ]);
+      if (cancelled) return;
+      const shaped = (productData.products || []).map(shapeProduct);
+      productsRef.current = shaped;
+      setProducts(shaped);
+      setCategories((Array.isArray(categoryData) ? categoryData : []).map(shapeCategory));
+      await refreshSession();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const openCart = useCallback(() => setCartOpen(true), []);
+  const closeCart = useCallback(() => setCartOpen(false), []);
+
+  const addToCart = async (productId, qty = 1, snapshot) => {
+    const id = String(productId);
+    const amount = Math.max(1, Math.min(20, Number(qty) || 1));
+    const known = snapshot ? [{ ...snapshot, id }] : [];
+    if (userRef.current) {
+      const cart = await api('/api/cart', {
+        method: 'POST',
+        body: JSON.stringify({ productId: id, qty: amount }),
+      });
+      setCartItems(cartLines(cart));
+      setCartOpen(true);
+      return;
+    }
+    const next = readGuestCart();
+    const hit = next.find((row) => row.productId === id);
+    if (hit) hit.qty = Math.min(20, hit.qty + amount);
+    else next.push({ productId: id, qty: amount });
+    writeGuestCart(next);
+    await applyGuest(productsRef.current, known);
+    setCartOpen(true);
+  };
+
+  const updateQty = async (productId, qty) => {
+    const id = String(productId);
+    if (userRef.current) {
+      const cart = await api('/api/cart', {
+        method: 'PUT',
+        body: JSON.stringify({ productId: id, qty }),
+      });
+      setCartItems(cartLines(cart));
+      return;
+    }
+    const next = readGuestCart()
+      .map((row) =>
+        row.productId === id ? { ...row, qty: Math.min(20, Math.max(0, Number(qty) || 0)) } : row,
+      )
+      .filter((row) => row.qty > 0);
+    writeGuestCart(next);
+    await applyGuest(productsRef.current);
+  };
+
+  const removeFromCart = async (productId) => {
+    const id = String(productId);
+    if (userRef.current) {
+      const cart = await api('/api/cart', {
+        method: 'DELETE',
+        body: JSON.stringify({ productId: id }),
+      });
+      setCartItems(cartLines(cart));
+      return;
+    }
+    writeGuestCart(readGuestCart().filter((row) => row.productId !== id));
+    await applyGuest(productsRef.current);
+  };
+
+  const clearCart = async () => {
+    if (userRef.current) {
+      await Promise.all(
+        cartItems.map((item) =>
+          api('/api/cart', { method: 'DELETE', body: JSON.stringify({ productId: item.id }) }),
+        ),
+      );
+      setCartItems([]);
+      return;
+    }
+    writeGuestCart([]);
+    setCartItems([]);
+  };
+
+  const toggleWishlist = async (productId) => {
+    const id = String(productId);
+    if (userRef.current) {
+      const wishlist = await api('/api/wishlist', {
+        method: 'POST',
+        body: JSON.stringify({ productId: id }),
+      });
+      const saved = (wishlist.products || []).map(shapeProduct);
+      setWishlistItems(saved);
+      setWishlistIds(saved.map((product) => product.id));
+      return;
+    }
+    const current = readGuestWishlist();
+    const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+    writeGuestWishlist(next);
+    await applyGuest(productsRef.current);
+  };
+
+  const cartCount = cartItems.reduce((sum, item) => sum + item.qty, 0);
+
+  return (
+    <CatalogContext.Provider
+      value={{
+        products,
+        categories,
+        cartCount,
+        cartItems,
+        cartOpen,
+        openCart,
+        closeCart,
+        wishlistIds,
+        wishlistItems,
+        user,
+        authReady,
+        refreshCart: refreshSession,
+        refreshSession,
+        addToCart,
+        updateQty,
+        removeFromCart,
+        clearCart,
+        toggleWishlist,
+        isWishlisted: (id) => wishlistIds.includes(String(id)),
+      }}
+    >
+      {children}
+    </CatalogContext.Provider>
+  );
+}
+
+export function useCatalog() {
+  return (
+    useContext(CatalogContext) || {
+      products: [],
+      categories: [],
+      cartCount: 0,
+      cartItems: [],
+      cartOpen: false,
+      openCart: () => {},
+      closeCart: () => {},
+      wishlistIds: [],
+      wishlistItems: [],
+      user: null,
+      authReady: false,
+      refreshCart: async () => {},
+      refreshSession: async () => {},
+      addToCart: async () => {},
+      updateQty: async () => {},
+      removeFromCart: async () => {},
+      clearCart: async () => {},
+      toggleWishlist: async () => {},
+      isWishlisted: () => false,
+    }
+  );
+}
