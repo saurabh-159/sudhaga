@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { productPath, productAlt } from '@/lib/storePath';
+import ProductImage from '@/components/user/ProductImage';
 import { ArrowRight, Zap } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import ProductQuickActions from '@/components/user/ProductQuickActions';
@@ -23,13 +25,13 @@ function BestSellerCard({ product }) {
   const discount = hasDiscount
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
-  const href = `/products/${product.id}`;
+  const href = productPath(product);
 
   return (
     <article className="flex h-full flex-col bg-white">
       <div className="relative aspect-[5/6] overflow-hidden rounded-2xl bg-neutral-100 sm:rounded-3xl">
-        <Link href={href} aria-label={product.name} className="absolute inset-0">
-          <img src={product.image} alt="" className="h-full w-full object-cover" />
+        <Link href={href} className="absolute inset-0">
+          <ProductImage src={product.image} alt={productAlt(product)} className="object-cover" sizes="(max-width: 768px) 80vw, 25vw" />
         </Link>
 
         <ProductQuickActions product={product} />

@@ -1,26 +1,72 @@
 import "./globals.css";
-import { BRAND } from "@/lib/brand";
+import { getSiteUrl, HOME_DESCRIPTION, HOME_TITLE, isPreviewDeployment } from "@/lib/site";
 
 export const metadata = {
+  metadataBase: new URL(getSiteUrl()),
+  applicationName: "Sudhaga",
   title: {
-    default: BRAND.name,
-    template: `%s · ${BRAND.name}`,
+    default: HOME_TITLE,
+    template: `%s · Sudhaga`,
   },
-  description: BRAND.tagline,
+  description: HOME_DESCRIPTION,
+  formatDetection: {
+    telephone: false,
+    email: false,
+    address: false,
+  },
+  robots: isPreviewDeployment()
+    ? { index: false, follow: false }
+    : {
+        index: true,
+        follow: true,
+        googleBot: {
+          index: true,
+          follow: true,
+          "max-video-preview": -1,
+          "max-image-preview": "large",
+          "max-snippet": -1,
+        },
+      },
+  openGraph: {
+    type: "website",
+    siteName: "Sudhaga",
+    locale: "en_IN",
+    url: "/",
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
+    images: [
+      {
+        url: "/og-default.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Sudhaga – festive ethnic wear",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
+    images: ["/og-default.jpg"],
+  },
   icons: {
     icon: [
-      { url: BRAND.favicon["16"], sizes: "16x16", type: "image/png" },
-      { url: BRAND.favicon["32"], sizes: "32x32", type: "image/png" },
-      { url: BRAND.mark.icon, sizes: "512x512", type: "image/png" },
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/icon.png", type: "image/png", sizes: "192x192" },
     ],
-    apple: [{ url: BRAND.favicon.apple, sizes: "180x180", type: "image/png" }],
-    shortcut: BRAND.favicon["32"],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
   },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en-IN">
       <body>{children}</body>
     </html>
   );

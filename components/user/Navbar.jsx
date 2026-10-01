@@ -79,6 +79,7 @@ export default function Navbar() {
             <Search className="ml-4 h-4 w-4 shrink-0 text-neutral-400" />
             <input
               name="search"
+              aria-label="Search products"
               placeholder="Search sarees, lehengas, suits…"
               className="h-11 w-full bg-transparent px-3 text-sm text-neutral-900 outline-none placeholder:text-neutral-400"
             />
@@ -201,6 +202,7 @@ export default function Navbar() {
               <input
                 ref={searchRef}
                 name="search"
+                aria-label="Search products"
                 autoFocus
                 placeholder="Search Sudhaga…"
                 className="h-11 w-full bg-transparent px-2.5 text-sm outline-none placeholder:text-neutral-400"
@@ -275,6 +277,7 @@ export default function Navbar() {
                   <Search className="h-4 w-4 text-neutral-400" />
                   <input
                     name="search"
+                    aria-label="Search products"
                     placeholder="Search sarees, lehengas…"
                     className="h-11 w-full bg-transparent px-2.5 text-sm outline-none placeholder:text-neutral-400"
                   />

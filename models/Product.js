@@ -15,6 +15,10 @@ const ProductSchema = new mongoose.Schema(
     numReviews: { type: Number, default: 0 },
     featured: { type: Boolean, default: false },
     bestSeller: { type: Boolean, default: false },
+    seoTitle: String,
+    metaDescription: String,
+    focusKeyword: String,
+    imageAlt: String,
     attributes: [
       {
         price: { type: Number, required: true, min: 0 },

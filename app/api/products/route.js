@@ -5,6 +5,26 @@ import { requireAdmin } from '@/lib/auth';
 import { ok, catchErr } from '@/lib/utils';
 import { productSchema } from '@/validations/productValidation';
 
+function slugify(value) {
+  const slug = String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 80);
+  return slug || 'product';
+}
+
+async function uniqueProductSlug(name) {
+  const base = slugify(name);
+  let slug = base;
+  let n = 2;
+  while (await Product.exists({ slug })) {
+    slug = `${base}-${n}`;
+    n += 1;
+  }
+  return slug;
+}
+
 export async function GET(req) {
   try {
     await connectDB();
@@ -39,7 +59,7 @@ export async function POST(req) {
     await connectDB();
     const body = await req.json();
     const parsed = productSchema.parse(body);
-    const slug = parsed.name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now();
+    const slug = await uniqueProductSlug(parsed.name);
     const product = await Product.create({ ...parsed, slug });
     return ok(product, 201);
   } catch (e) {

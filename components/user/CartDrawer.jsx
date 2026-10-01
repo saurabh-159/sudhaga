@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { Heart, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { useCatalog } from '@/components/user/CatalogProvider';
+import { productPath } from '@/lib/storePath';
 import { lockBodyScroll } from '@/lib/scrollLock';
 
 function money(value) {
@@ -97,7 +98,7 @@ export default function CartDrawer() {
                 return (
                   <li key={item.id} className="flex gap-3 rounded-2xl bg-white p-3 ring-1 ring-black/[0.05]">
                     <Link
-                      href={`/products/${item.id}`}
+                      href={productPath(item)}
                       onClick={closeCart}
                       className="relative aspect-[3/4] w-[76px] shrink-0 overflow-hidden rounded-xl bg-[#f3ebe3]"
                     >
@@ -106,7 +107,7 @@ export default function CartDrawer() {
                     <div className="flex min-w-0 flex-1 flex-col">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <Link href={`/products/${item.id}`} onClick={closeCart}>
+                          <Link href={productPath(item)} onClick={closeCart}>
                             <p className="line-clamp-2 text-sm font-medium leading-snug text-neutral-950">
                               {item.name}
                             </p>

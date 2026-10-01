@@ -1,44 +1,66 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import ProductGrid from '@/components/user/ProductGrid';
-import { api, shapeCategory, shapeProduct } from '@/lib/apiClient';
+import { getCategoryView } from '@/lib/catalog';
+import { cleanCanonical } from '@/lib/canonical';
+import { pageTitle } from '@/lib/storePath';
+import { metaDescription } from '@/lib/site';
+import { pageHead } from '@/lib/pageMeta';
+import JsonLd from '@/components/seo/JsonLd';
+import { breadcrumbSchema } from '@/lib/schema';
 
-export default function CategoryPage() {
-  const { slug } = useParams();
-  const [category, setCategory] = useState(null);
-  const [filtered, setFiltered] = useState([]);
-  const [catalog, setCatalog] = useState([]);
-  const [otherCategories, setOtherCategories] = useState([]);
-  const [missing, setMissing] = useState(false);
+export async function generateMetadata({ params, searchParams }) {
+  const { slug } = await params;
+  const sp = await searchParams;
+  const view = await getCategoryView(slug).catch(() => null);
+  if (!view) {
+    return pageHead({
+      title: 'Category not found',
+      description: 'That category is not available at Sudhaga.',
+      canonical: '/categories',
+      indexable: false,
+    });
+  }
+  const title = pageTitle(view.category.seoTitle, view.category.name);
+  const description = metaDescription(
+    view.category.metaDescription || view.category.blurb,
+    `Shop ${view.category.name} at Sudhaga.`,
+  );
+  const canon = cleanCanonical(`/categories/${view.category.slug}`, sp);
+  return pageHead({
+    title,
+    description,
+    canonical: canon.alternates.canonical,
+    indexable: !canon.robots,
+    images: view.category.image
+      ? [{ url: view.category.image, alt: view.category.imageAlt || view.category.name }]
+      : undefined,
+  });
+}
 
-  useEffect(() => {
-    setMissing(false);
-    setCategory(null);
-    Promise.all([api('/api/categories'), api('/api/products?limit=100')])
-      .then(([cats, prod]) => {
-        const list = (cats || []).map(shapeCategory);
-        const found = list.find((item) => item.slug === slug);
-        if (!found) {
-          setMissing(true);
-          return;
-        }
-        const products = (prod.products || []).map(shapeProduct);
-        setCategory(found);
-        setCatalog(products);
-        setFiltered(products.filter((product) => product.category === slug));
-        setOtherCategories(list.filter((item) => item.slug !== slug).slice(0, 4));
-      })
-      .catch(() => setMissing(true));
-  }, [slug]);
+export default async function CategoryPage({ params }) {
+  const { slug } = await params;
+  let view;
+  try {
+    view = await getCategoryView(slug);
+  } catch {
+    return (
+      <p className="px-4 py-16 text-center">This category is temporarily unavailable. Please try again.</p>
+    );
+  }
+  if (!view) notFound();
 
-  if (missing) return <p className="px-4 py-16 text-center">Category not found.</p>;
-  if (!category) return <p className="px-4 py-16 text-center">Loading…</p>;
+  const { category, products: filtered, others: otherCategories } = view;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 md:py-8">
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: 'Home', href: '/' },
+          { name: 'Categories', href: '/categories' },
+          { name: category.name, href: `/categories/${category.slug}` },
+        ])}
+      />
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs md:text-sm text-gray-500 mb-6">
         <Link href="/" className="hover:text-gray-900 transition-colors flex items-center gap-1.5">
@@ -104,6 +126,9 @@ export default function CategoryPage() {
           <p className="mt-3 max-w-md text-sm leading-relaxed text-white/75 md:text-[15px]">
             {category.blurb || `Shop our ${category.name.toLowerCase()} collection.`}
           </p>
+          {category.answerText ? (
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/90">{category.answerText}</p>
+          ) : null}
         </div>
       </section>
 
@@ -234,7 +259,7 @@ export default function CategoryPage() {
 
           <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
             {otherCategories.map((c) => {
-              const count = catalog.filter((p) => p.category === c.slug).length;
+              const count = c.count;
               const contain = c.imageFit === 'contain';
               const focusClass =
                 c.imageFocus === 'top'
@@ -252,7 +277,7 @@ export default function CategoryPage() {
                 >
                   <img
                     src={c.image}
-                    alt={c.name}
+                    alt={c.imageAlt || c.name}
                     className={`h-full w-full transition duration-700 ease-out group-hover:scale-[1.04] ${
                       contain ? 'object-contain' : `object-cover ${focusClass}`
                     }`}

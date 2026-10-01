@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { productPath, productAlt } from '@/lib/storePath';
+import ProductImage from '@/components/user/ProductImage';
 import { Star } from 'lucide-react';
 import ProductQuickActions, { ProductCartButton } from '@/components/user/ProductQuickActions';
 
@@ -21,17 +23,13 @@ export default function ProductCard({ product }) {
   const discount = hasDiscount
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
-  const href = `/products/${product.id}`;
+  const href = productPath(product);
 
   return (
     <article className="group">
       <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-[#f3ebe3]">
-        <Link href={href} aria-label={product.name} className="absolute inset-0">
-          <img
-            src={product.image}
-            alt=""
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
-          />
+        <Link href={href} className="absolute inset-0">
+          <ProductImage src={product.image} alt={productAlt(product)} className="object-cover transition duration-500 group-hover:scale-[1.04]" />
         </Link>
         {discount > 0 ? (
           <span className="pointer-events-none absolute left-2 top-2 bg-white/90 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-neutral-900 backdrop-blur-sm sm:left-3 sm:top-3 sm:px-2.5 sm:text-[10px] sm:tracking-[0.14em]">

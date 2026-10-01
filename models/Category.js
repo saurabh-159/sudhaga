@@ -9,8 +9,17 @@ const CategorySchema = new mongoose.Schema(
     imageFocus: String,
     imageFit: String,
     imageBg: String,
+    seoTitle: String,
+    metaDescription: String,
+    focusKeyword: String,
+    imageAlt: String,
+    answerText: String,
   },
   { timestamps: true }
 );
 
-export default mongoose.models.Category || mongoose.model('Category', CategorySchema);
+if (mongoose.models.Category) {
+  mongoose.deleteModel('Category');
+}
+
+export default mongoose.model('Category', CategorySchema);

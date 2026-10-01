@@ -16,6 +16,7 @@ import {
   Settings,
   ImageIcon,
   MessageSquare,
+  Newspaper,
   X,
 } from 'lucide-react';
 import { BRAND } from '@/lib/brand';
@@ -30,6 +31,7 @@ const links = [
   { href: '/admin/coupons', label: 'Coupons', icon: TicketPercent },
   { href: '/admin/banners', label: 'Homepage', icon: ImageIcon },
   { href: '/admin/testimonials', label: 'Reviews', icon: MessageSquare },
+  { href: '/admin/articles', label: 'Blog', icon: Newspaper },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];

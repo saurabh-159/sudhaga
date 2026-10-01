@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { productPath } from '@/lib/storePath';
 import { Heart, Minus, Plus, Trash2 } from 'lucide-react';
 
 export default function CartItem({ item, onRemove, onQtyChange }) {
@@ -13,7 +14,7 @@ export default function CartItem({ item, onRemove, onQtyChange }) {
   return (
     <article className="group relative flex gap-4 overflow-hidden rounded-2xl border border-black/[0.06] bg-white p-4 shadow-[0_1px_0_rgba(22,19,17,0.03)] transition duration-300 hover:border-black/10 hover:shadow-[0_12px_40px_rgba(22,19,17,0.06)] sm:gap-5 sm:p-5">
       <Link
-        href={`/products/${item.id}`}
+        href={productPath(item)}
         className="relative aspect-[3/4] w-24 shrink-0 overflow-hidden rounded-xl bg-[#f3ebe3] sm:w-28 md:w-32"
       >
         <img
@@ -36,7 +37,7 @@ export default function CartItem({ item, onRemove, onQtyChange }) {
                 {String(item.category).replace(/-/g, ' ')}
               </p>
             ) : null}
-            <Link href={`/products/${item.id}`}>
+            <Link href={productPath(item)}>
               <h3 className="mt-1 line-clamp-2 text-[15px] font-medium leading-snug text-neutral-950 transition hover:text-neutral-600 md:text-base">
                 {item.name}
               </h3>

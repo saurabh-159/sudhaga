@@ -1,4 +1,12 @@
 import Link from 'next/link';
+import { pageHead } from '@/lib/pageMeta';
+
+export const metadata = pageHead({
+  title: 'Page not found',
+  description: 'That page is not available at Sudhaga.',
+  canonical: '/',
+  indexable: false,
+});
 
 export default function NotFound() {
   return (

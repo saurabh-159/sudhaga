@@ -1,29 +1,61 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import ProductGrid from '@/components/user/ProductGrid';
 import Pagination from '@/components/ui/Pagination';
-import { api, shapeProduct } from '@/lib/apiClient';
-import { Suspense } from 'react';
+import { listProducts } from '@/lib/catalog';
+import { pageNumber, productsCanonical } from '@/lib/canonical';
+import { metaDescription } from '@/lib/site';
+import { pageHead } from '@/lib/pageMeta';
 
-function ProductsBrowser() {
-  const searchParams = useSearchParams();
-  const search = searchParams.get('search') || '';
-  const [products, setProducts] = useState([]);
-  const [page, setPage] = useState(1);
-  const [pages, setPages] = useState(1);
+function listingPath(page, search) {
+  const params = new URLSearchParams();
+  if (search) params.set('search', search);
+  if (page > 1) params.set('page', String(page));
+  const query = params.toString();
+  return query ? `/products?${query}` : '/products';
+}
 
-  useEffect(() => {
-    const query = new URLSearchParams({ page: String(page), limit: '12' });
-    if (search) query.set('search', search);
-    api(`/api/products?${query}`)
-      .then((data) => {
-        setProducts((data.products || []).map(shapeProduct));
-        setPages(data.pages || 1);
-      })
-      .catch(() => setProducts([]));
-  }, [page, search]);
+export async function generateMetadata({ searchParams }) {
+  const sp = await searchParams;
+  const search = String(sp?.search || '').trim();
+  const page = pageNumber(sp?.page);
+  const title = search ? `Results for “${search}”` : page > 1 ? `All Products, page ${page}` : 'All Products';
+  const description = metaDescription(
+    search
+      ? `Search results for ${search} at Sudhaga.`
+      : 'Shop Sudhaga ethnic wear — suit sets, lehenga sets, and kurta sets.',
+  );
+  const canon = productsCanonical(sp);
+  let pagination;
+  if (!canon.robots) {
+    const listing = await listProducts(page, 12, '').catch(() => null);
+    if (listing && listing.pages > 1) {
+      pagination = {};
+      if (page > 1) pagination.previous = page === 2 ? '/products' : `/products?page=${page - 1}`;
+      if (page < listing.pages) pagination.next = `/products?page=${page + 1}`;
+    }
+  }
+  return {
+    ...pageHead({
+      title,
+      description,
+      canonical: canon.alternates.canonical,
+      indexable: !canon.robots,
+    }),
+    ...(pagination ? { pagination } : {}),
+  };
+}
+
+export default async function ProductsPage({ searchParams }) {
+  const sp = await searchParams;
+  const search = String(sp?.search || '').trim();
+  const requestedPage = pageNumber(sp?.page);
+  let listing;
+  try {
+    listing = await listProducts(requestedPage, 12, search);
+  } catch {
+    return (
+      <p className="px-4 py-16 text-center">Products are temporarily unavailable. Please try again.</p>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 md:py-8">
@@ -36,16 +68,12 @@ function ProductsBrowser() {
           {search ? `Results for “${search}”` : 'All Products'}
         </h1>
       </div>
-      <ProductGrid products={products} />
-      <Pagination current={page} total={pages} onChange={setPage} />
+      <ProductGrid products={listing.products} />
+      <Pagination
+        current={listing.page}
+        total={listing.pages}
+        hrefFor={(page) => listingPath(page, search)}
+      />
     </div>
-  );
-}
-
-export default function ProductsPage() {
-  return (
-    <Suspense fallback={<p className="px-4 py-8">Loading products…</p>}>
-      <ProductsBrowser />
-    </Suspense>
   );
 }

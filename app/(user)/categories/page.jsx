@@ -1,8 +1,10 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { api, shapeCategory, shapeProduct } from '@/lib/apiClient';
+import { listCategories } from '@/lib/catalog';
+import { cleanCanonical } from '@/lib/canonical';
+import { metaDescription } from '@/lib/site';
+import { pageHead } from '@/lib/pageMeta';
+import JsonLd from '@/components/seo/JsonLd';
+import { breadcrumbSchema } from '@/lib/schema';
 
 const FOCUS_CLASS = {
   top: 'object-top',
@@ -15,23 +17,39 @@ function itemLabel(count) {
   return `${count} items`;
 }
 
-export default function CategoriesPage() {
-  const [categories, setCategories] = useState([]);
-  const [products, setProducts] = useState([]);
+export async function generateMetadata({ searchParams }) {
+  const description = metaDescription(
+    'Shop Sudhaga by category — festive suits, lehengas, and everyday ethnic wear.',
+  );
+  const canon = cleanCanonical('/categories', await searchParams);
+  return pageHead({
+    title: 'Shop by Category',
+    description,
+    canonical: canon.alternates.canonical,
+    indexable: !canon.robots,
+  });
+}
 
-  useEffect(() => {
-    api('/api/categories')
-      .then((data) => setCategories((data || []).map(shapeCategory)))
-      .catch(() => setCategories([]));
-    api('/api/products?limit=100')
-      .then((data) => setProducts((data.products || []).map(shapeProduct)))
-      .catch(() => setProducts([]));
-  }, []);
+export default async function CategoriesPage() {
+  let categories;
+  try {
+    categories = await listCategories();
+  } catch {
+    return (
+      <p className="px-4 py-16 text-center">Categories are temporarily unavailable. Please try again.</p>
+    );
+  }
 
-  const totalPieces = products.length;
+  const totalPieces = categories.reduce((sum, category) => sum + category.count, 0);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 md:py-8">
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: 'Home', href: '/' },
+          { name: 'Categories', href: '/categories' },
+        ])}
+      />
       <nav className="mb-8 flex items-center gap-2 text-xs text-neutral-500 md:text-sm">
         <Link href="/" className="transition-colors hover:text-neutral-900">
           Home
@@ -55,45 +73,48 @@ export default function CategoriesPage() {
         </p>
       </header>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-        {categories.map((category) => {
-          const count = products.filter((p) => p.category === category.slug).length;
-          const contain = category.imageFit === 'contain';
-          const focusClass = FOCUS_CLASS[category.imageFocus] || 'object-center';
+      {categories.length ? (
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+          {categories.map((category) => {
+            const contain = category.imageFit === 'contain';
+            const focusClass = FOCUS_CLASS[category.imageFocus] || 'object-center';
 
-          return (
-            <Link
-              key={category.id}
-              href={`/categories/${category.slug}`}
-              className="group relative aspect-[3/4] overflow-hidden rounded-[1.25rem] shadow-[0_10px_28px_-18px_rgba(0,0,0,0.45)] ring-1 ring-black/5 transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_36px_-16px_rgba(0,0,0,0.4)]"
-              style={contain ? { backgroundColor: category.imageBg || '#e8e0d6' } : undefined}
-            >
-              <img
-                src={category.image}
-                alt={category.name}
-                className={`h-full w-full transition duration-700 ease-out group-hover:scale-[1.04] ${
-                  contain ? 'object-contain' : `object-cover ${focusClass}`
-                }`}
-              />
-              <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent transition duration-300 group-hover:from-black/85" />
-              <span className="absolute inset-x-0 bottom-0 p-3.5 text-white sm:p-4">
-                <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.16em] text-white/75">
-                  {category.blurb}
-                </span>
-                <span className="block text-lg font-semibold leading-none tracking-tight sm:text-xl">
-                  {category.name}
-                </span>
-                <span className="mt-2.5 flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-white/80">{itemLabel(count)}</span>
-                  <span className="translate-y-1.5 text-[11px] font-semibold text-white opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-                    Explore →
+            return (
+              <Link
+                key={category.id}
+                href={`/categories/${category.slug}`}
+                className="group relative aspect-[3/4] overflow-hidden rounded-[1.25rem] shadow-[0_10px_28px_-18px_rgba(0,0,0,0.45)] ring-1 ring-black/5 transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_36px_-16px_rgba(0,0,0,0.4)]"
+                style={contain ? { backgroundColor: category.imageBg || '#e8e0d6' } : undefined}
+              >
+                <img
+                  src={category.image}
+                    alt={category.imageAlt || category.name}
+                  className={`h-full w-full transition duration-700 ease-out group-hover:scale-[1.04] ${
+                    contain ? 'object-contain' : `object-cover ${focusClass}`
+                  }`}
+                />
+                <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent transition duration-300 group-hover:from-black/85" />
+                <span className="absolute inset-x-0 bottom-0 p-3.5 text-white sm:p-4">
+                  <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-[0.16em] text-white/75">
+                    {category.blurb}
+                  </span>
+                  <span className="block text-lg font-semibold leading-none tracking-tight sm:text-xl">
+                    {category.name}
+                  </span>
+                  <span className="mt-2.5 flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-white/80">{itemLabel(category.count)}</span>
+                    <span className="translate-y-1.5 text-[11px] font-semibold text-white opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+                      Explore →
+                    </span>
                   </span>
                 </span>
-              </span>
-            </Link>
-          );
-        })}
-      </div>
+              </Link>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="py-16 text-center text-neutral-500">No categories yet.</p>
+      )}
     </div>
   );
 }

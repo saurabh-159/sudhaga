@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { api, shapeOrder } from '@/lib/apiClient';
+import { productPath } from '@/lib/storePath';
 
 const statusSteps = [
   { key: 'Ordered', label: 'Order placed', desc: 'We received your order' },
@@ -424,7 +425,7 @@ export default function OrderDetails() {
                   key={i}
                   className="flex gap-4 px-5 py-5 transition hover:bg-[#faf7f3] md:px-6"
                 >
-                  <Link href={`/products/${item.id}`} className="shrink-0">
+                  <Link href={productPath(item)} className="shrink-0">
                     <div className="h-24 w-20 overflow-hidden rounded-xl bg-[#f3ebe3] md:h-28 md:w-24">
                       <img
                         src={item.image}
@@ -435,7 +436,7 @@ export default function OrderDetails() {
                   </Link>
 
                   <div className="min-w-0 flex-1">
-                    <Link href={`/products/${item.id}`}>
+                    <Link href={productPath(item)}>
                       <h3 className="line-clamp-2 text-sm font-medium text-neutral-950 transition hover:text-neutral-600 md:text-base">
                         {item.name}
                       </h3>

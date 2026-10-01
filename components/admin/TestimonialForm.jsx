@@ -68,7 +68,7 @@ export default function TestimonialForm({ initial = {} }) {
           <Input label="Rating" name="rating" type="number" min="1" max="5" defaultValue={initial.rating || 5} required />
           <Input label="Sort order" name="order" type="number" defaultValue={initial.order ?? 0} />
         </div>
-        <Textarea label="Review" name="text" defaultValue={initial.text} rows={4} required />
+        <Textarea label="Review" name="text" defaultValue={initial.text} rows={4} required hint="SEO task 14. Only a real customer review. Do not invent ratings or quotes." />
         <label className="flex items-center gap-3 text-sm text-neutral-800">
           <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} className="h-4 w-4" />
           Show on homepage

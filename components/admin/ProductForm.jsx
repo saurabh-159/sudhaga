@@ -8,6 +8,7 @@ import Select from '../ui/Select';
 import Textarea from '../ui/Textarea';
 import Button from '../ui/Button';
 import AdminFormSection from './AdminFormSection';
+import SeoFields from './SeoFields';
 import { Plus, X } from 'lucide-react';
 import { attributes as defaultAttributes } from '@/lib/dummyData';
 import { api, shapeCategory } from '@/lib/apiClient';
@@ -218,6 +219,10 @@ export default function ProductForm({ initial = {} }) {
     const payload = {
       name: form.get('name'),
       description: form.get('description') || '',
+      seoTitle: form.get('seoTitle') || '',
+      metaDescription: form.get('metaDescription') || '',
+      focusKeyword: form.get('focusKeyword') || '',
+      imageAlt: form.get('imageAlt') || '',
       price: Number(form.get('price')),
       stock: Number(form.get('stock') || 0),
       category: form.get('category'),
@@ -248,8 +253,8 @@ export default function ProductForm({ initial = {} }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <AdminFormSection title="Basic details" description="Name, pricing, and how this piece appears in the store.">
-        <Input label="Product name" name="name" defaultValue={initial.name} placeholder="e.g. Priya Orange Embroidered Suit Set" required />
-        <Textarea label="Description" name="description" defaultValue={initial.description} placeholder="Short description for the product page…" rows={4} />
+        <Input label="Product name" name="name" defaultValue={initial.name} placeholder="e.g. Priya Orange Embroidered Suit Set" hint="SEO task 4. This is the heading shoppers see on the product page." required />
+        <Textarea label="Description" name="description" defaultValue={initial.description} placeholder="Short description for the product page…" rows={4} hint="SEO task 4. Visible text on the product page. Used as the Google description when the search description below is empty." />
         <div className="grid gap-4 md:grid-cols-2">
           <Select
             key={categories.map((c) => c.id).join(',') || 'empty'}
@@ -272,7 +277,9 @@ export default function ProductForm({ initial = {} }) {
         </div>
       </AdminFormSection>
 
-      <AdminFormSection title="Pricing & inventory" description="Set selling price, compare-at price, and available stock.">
+      <SeoFields initial={initial} url={initial.slug ? `/products/${initial.slug}` : ''} />
+
+      <AdminFormSection title="Pricing & inventory" description="Set selling price, compare-at price, and available stock. Stock 0 keeps the page online and shows Out of stock.">
         <div className="grid gap-4 md:grid-cols-3">
           <Input label="Price (₹)" name="price" type="number" min="0" defaultValue={initial.price} placeholder="5499" required />
           <Input label="Original price (₹)" name="originalPrice" type="number" min="0" defaultValue={initial.originalPrice} placeholder="7999" hint="Shown as struck-through MRP" />

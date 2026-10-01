@@ -140,7 +140,7 @@ export default function BannerForm({ initial = {} }) {
         <AdminFormSection title="Image" description="Upload a photo or paste an image URL.">
           <Input label="Upload image" type="file" accept="image/*" onChange={(event) => upload(event, setImage)} />
           <Input label="Image URL" value={image} onChange={(event) => setImage(event.target.value)} />
-          <Input label="Image description" name="imageAlt" defaultValue={initial.imageAlt} />
+          <Input label="Image description" name="imageAlt" defaultValue={initial.imageAlt} hint="SEO task 15. What this banner photo shows, in normal words." />
           {placement === 'deal-side' ? (
             <>
               <Input label="Upload hover image" type="file" accept="image/*" onChange={(event) => upload(event, setHoverImage)} />

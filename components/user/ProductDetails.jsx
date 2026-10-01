@@ -5,6 +5,9 @@ import { useState } from 'react';
 import Button from '@/components/ui/Button';
 import { useCatalog } from '@/components/user/CatalogProvider';
 import ProductCard from '@/components/user/ProductCard';
+import ProductImage from '@/components/user/ProductImage';
+import Breadcrumbs from '@/components/user/Breadcrumbs';
+import { productAlt, productCrumbs } from '@/lib/storePath';
 import { useRouter } from 'next/navigation';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import 'swiper/css';
@@ -15,7 +18,6 @@ import {
   Truck,
   Shield,
   RefreshCw,
-  ChevronRight,
   Minus,
   Plus,
   Share2,
@@ -40,7 +42,7 @@ function buildGallery(product) {
   return unique.slice(0, 4);
 }
 
-export default function ProductDetails({ product }) {
+export default function ProductDetails({ product, relatedProducts = [] }) {
   const router = useRouter();
   const { addToCart, toggleWishlist, isWishlisted, closeCart, products } = useCatalog();
   const wishlisted = isWishlisted(product.id);
@@ -53,9 +55,12 @@ export default function ProductDetails({ product }) {
   const [copied, setCopied] = useState(false);
 
   const gallery = buildGallery(product);
-  const related = products
+  const inStock = Number(product.stock ?? 0) > 0;
+  const reviewCount = Number(product.numReviews || 0);
+  const catalogRelated = products
     .filter((item) => item.category === product.category && item.id !== product.id)
     .slice(0, 4);
+  const related = (relatedProducts.length ? relatedProducts : catalogRelated).slice(0, 4);
 
   const colors = [
     { name: 'Black', class: 'bg-gray-900' },
@@ -108,28 +113,7 @@ export default function ProductDetails({ product }) {
 
   return (
     <div className="mx-auto max-w-8xl px-4 py-6 pb-28 md:py-8 lg:pb-8">
-      <nav className="mb-6 flex flex-wrap items-center gap-2 text-xs text-gray-500 md:text-sm">
-        <Link href="/" className="transition-colors hover:text-gray-900">
-          Home
-        </Link>
-        <ChevronRight className="h-3.5 w-3.5 text-gray-300" />
-        <Link href="/products" className="transition-colors hover:text-gray-900">
-          Products
-        </Link>
-        {product.category ? (
-          <>
-            <ChevronRight className="h-3.5 w-3.5 text-gray-300" />
-            <Link
-              href={`/categories/${product.category}`}
-              className="transition-colors hover:text-gray-900"
-            >
-              {categoryLabel(product.category)}
-            </Link>
-          </>
-        ) : null}
-        <ChevronRight className="h-3.5 w-3.5 text-gray-300" />
-        <span className="max-w-[200px] truncate font-semibold text-gray-900">{product.name}</span>
-      </nav>
+      <Breadcrumbs items={productCrumbs(product)} />
 
       <div className="grid items-start gap-8 lg:grid-cols-2 lg:gap-10 xl:gap-12">
         {/* LEFT — sticky gallery: thumbs column + main image */}
@@ -141,22 +125,29 @@ export default function ProductDetails({ product }) {
                 type="button"
                 onClick={() => setActiveImage(i)}
                 aria-label={`View image ${i + 1}`}
-                className={`aspect-[3/4] w-14 shrink-0 overflow-hidden rounded-lg transition duration-300 sm:w-16 lg:w-full ${
+                className={`relative aspect-[3/4] w-14 shrink-0 overflow-hidden rounded-lg transition duration-300 sm:w-16 lg:w-full ${
                   activeImage === i
                     ? 'ring-2 ring-neutral-900 ring-offset-1'
                     : 'opacity-70 ring-1 ring-black/10 hover:opacity-100'
                 }`}
               >
-                <img src={img} alt="" className="h-full w-full object-cover" />
+                <ProductImage
+                  src={img}
+                  alt={`${productAlt(product)}, image ${i + 1}`}
+                  className="object-cover"
+                  sizes="80px"
+                />
               </button>
             ))}
           </div>
 
-          <div className="group relative min-w-0 flex-1 overflow-hidden rounded-xl bg-[#f3ebe3] ring-1 ring-black/5">
-            <img
+          <div className="group relative min-h-[min(62vh,520px)] min-w-0 flex-1 overflow-hidden rounded-xl bg-[#f3ebe3] ring-1 ring-black/5 lg:min-h-[min(78vh,720px)]">
+            <ProductImage
               src={gallery[activeImage]}
-              alt={product.name}
-              className="h-[min(62vh,520px)] w-full object-cover object-top transition duration-700 group-hover:scale-[1.02] lg:h-[min(78vh,720px)]"
+              alt={productAlt(product)}
+              className="object-cover object-top transition duration-700 group-hover:scale-[1.02]"
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              priority
             />
 
             {discount > 0 ? (
@@ -198,9 +189,9 @@ export default function ProductDetails({ product }) {
         {/* RIGHT — scrolls while gallery stays sticky */}
         <div className="lg:pt-1">
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              In stock
+            <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] ${inStock ? 'text-emerald-700' : 'text-neutral-500'}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${inStock ? 'bg-emerald-500' : 'bg-neutral-400'}`} />
+              {inStock ? 'In stock' : 'Out of stock'}
             </span>
             {product.tag ? (
               <>
@@ -233,15 +224,15 @@ export default function ProductDetails({ product }) {
               <span className="font-medium text-neutral-900">{product.rating}</span>
             </div>
             <span className="hidden h-3 w-px bg-neutral-200 sm:block" />
-            <button
-              type="button"
-              onClick={() => setActiveTab('reviews')}
-              className="underline-offset-2 transition hover:text-neutral-900 hover:underline"
-            >
-              {product.reviews ?? 128} reviews
-            </button>
-            <span className="hidden h-3 w-px bg-neutral-200 sm:block" />
-            <span>{product.sold ?? 340}+ sold</span>
+            {reviewCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => setActiveTab('reviews')}
+                className="underline-offset-2 transition hover:text-neutral-900 hover:underline"
+              >
+                {reviewCount} reviews
+              </button>
+            ) : null}
           </div>
 
           <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-y border-neutral-200/80 py-5">
@@ -367,9 +358,10 @@ export default function ProductDetails({ product }) {
             <Button
               className="group h-12 flex-1 gap-2 rounded-none bg-neutral-950 text-sm font-medium tracking-wide hover:bg-neutral-800"
               onClick={() => addItem(false)}
+              disabled={!inStock}
             >
               <ShoppingCart className="h-4 w-4 transition-transform group-hover:scale-105" />
-              Add to Cart
+              {inStock ? 'Add to Cart' : 'Out of stock'}
             </Button>
           </div>
           {cartError ? <p className="mt-2 text-sm text-red-600">{cartError}</p> : null}
@@ -377,9 +369,10 @@ export default function ProductDetails({ product }) {
           <button
             type="button"
             onClick={() => addItem(true)}
-            className="mt-3 flex h-12 w-full items-center justify-center border border-neutral-950 text-sm font-medium tracking-wide text-neutral-950 transition hover:bg-neutral-950 hover:text-white"
+            className="mt-3 flex h-12 w-full items-center justify-center border border-neutral-950 text-sm font-medium tracking-wide text-neutral-950 transition hover:bg-neutral-950 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!inStock}
           >
-            Buy Now — Instant Checkout
+            {inStock ? 'Buy Now — Instant Checkout' : 'Out of stock'}
           </button>
 
           <ul className="mt-8 grid grid-cols-2 gap-px overflow-hidden bg-neutral-200/80 sm:grid-cols-3 [&>li:last-child]:col-span-2 sm:[&>li:last-child]:col-span-1">
@@ -417,7 +410,7 @@ export default function ProductDetails({ product }) {
           {[
             { id: 'description', label: 'Description' },
             { id: 'specs', label: 'Specifications' },
-            { id: 'reviews', label: `Reviews (${product.reviews ?? 128})` },
+            { id: 'reviews', label: `Reviews (${reviewCount})` },
             { id: 'shipping', label: 'Shipping & Returns' },
           ].map((t) => (
             <button
@@ -506,7 +499,11 @@ export default function ProductDetails({ product }) {
             </div>
           ) : null}
 
-          {activeTab === 'reviews' ? (
+          {activeTab === 'reviews' && reviewCount < 1 ? (
+            <p className="py-8 text-sm text-neutral-500">No reviews yet.</p>
+          ) : null}
+
+          {activeTab === 'reviews' && reviewCount > 0 ? (
             <div className="space-y-8">
               {/* Summary */}
               <div className="grid gap-6 lg:grid-cols-[1fr_1.35fr]">
@@ -855,9 +852,9 @@ export default function ProductDetails({ product }) {
           <Heart className={`h-5 w-5 ${wishlisted ? 'fill-current' : ''}`} />
         </button>
 
-        <Button className="h-12 min-w-0 flex-1 gap-2 px-3 text-sm" onClick={() => addItem(false)}>
+        <Button className="h-12 min-w-0 flex-1 gap-2 px-3 text-sm" onClick={() => addItem(false)} disabled={!inStock}>
           <ShoppingCart className="h-4 w-4 shrink-0" />
-          <span className="truncate">Add · ₹{product.price?.toLocaleString('en-IN')}</span>
+          <span className="truncate">{inStock ? `Add · ₹${product.price?.toLocaleString('en-IN')}` : 'Out of stock'}</span>
         </Button>
       </div>
     </div>

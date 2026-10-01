@@ -10,6 +10,10 @@ export const productSchema = z.object({
   stock: z.number().min(0).default(0),
   featured: z.boolean().optional(),
   bestSeller: z.boolean().optional(),
+  seoTitle: z.string().optional(),
+  metaDescription: z.string().optional(),
+  focusKeyword: z.string().optional(),
+  imageAlt: z.string().optional(),
   attributes: z
     .array(
       z.object({

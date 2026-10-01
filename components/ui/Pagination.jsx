@@ -1,17 +1,22 @@
-'use client';
+import Link from 'next/link';
 
-export default function Pagination({ current = 1, total = 5, onChange }) {
+export default function Pagination({ current = 1, total = 1, hrefFor }) {
+  if (!total || total <= 1 || typeof hrefFor !== 'function') return null;
+
   return (
-    <div className="flex justify-center gap-2 mt-8">
+    <nav className="mt-8 flex justify-center gap-2" aria-label="Pagination">
       {Array.from({ length: total }, (_, i) => i + 1).map((p) => (
-        <button
+        <Link
           key={p}
-          onClick={() => onChange?.(p)}
-          className={`w-10 h-10 rounded-lg ${p === current ? 'bg-black text-white' : 'bg-white border'}`}
+          href={hrefFor(p)}
+          aria-current={p === current ? 'page' : undefined}
+          className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+            p === current ? 'bg-black text-white' : 'border bg-white'
+          }`}
         >
           {p}
-        </button>
+        </Link>
       ))}
-    </div>
+    </nav>
   );
 }

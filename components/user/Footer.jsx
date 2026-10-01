@@ -41,9 +41,31 @@ export default function Footer() {
         <div>
           <h4 className="mb-3 font-semibold">Help</h4>
           <ul className="space-y-1 text-sm text-gray-400">
-            <li>Contact</li>
-            <li>Returns</li>
-            <li>Shipping</li>
+            <li>
+              <Link href="/contact" className="transition hover:text-[var(--brand-gold,#D0B15A)]">
+                Contact
+              </Link>
+            </li>
+            <li>
+              <Link href="/shipping" className="transition hover:text-[var(--brand-gold,#D0B15A)]">
+                Shipping
+              </Link>
+            </li>
+            <li>
+              <Link href="/returns" className="transition hover:text-[var(--brand-gold,#D0B15A)]">
+                Returns
+              </Link>
+            </li>
+            <li>
+              <Link href="/about" className="transition hover:text-[var(--brand-gold,#D0B15A)]">
+                About
+              </Link>
+            </li>
+            <li>
+              <Link href="/blog" className="transition hover:text-[var(--brand-gold,#D0B15A)]">
+                Blog
+              </Link>
+            </li>
           </ul>
         </div>
         <div>

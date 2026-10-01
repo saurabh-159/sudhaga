@@ -7,6 +7,7 @@ import Input from '../ui/Input';
 import Textarea from '../ui/Textarea';
 import Button from '../ui/Button';
 import AdminFormSection from './AdminFormSection';
+import SeoFields from './SeoFields';
 import { api } from '@/lib/apiClient';
 
 export default function CategoryForm({ initial = {} }) {
@@ -33,6 +34,11 @@ export default function CategoryForm({ initial = {} }) {
       name: form.get('name'),
       slug: form.get('slug'),
       blurb: form.get('blurb'),
+      answerText: form.get('answerText') || '',
+      seoTitle: form.get('seoTitle') || '',
+      metaDescription: form.get('metaDescription') || '',
+      focusKeyword: form.get('focusKeyword') || '',
+      imageAlt: form.get('imageAlt') || '',
       image: imageUrl,
     };
     try {
@@ -65,6 +71,7 @@ export default function CategoryForm({ initial = {} }) {
             name="name"
             defaultValue={initial.name}
             placeholder="Suit Sets"
+            hint="SEO task 3. This is the category heading."
             required
           />
           <Input
@@ -72,7 +79,7 @@ export default function CategoryForm({ initial = {} }) {
             name="slug"
             defaultValue={initial.slug}
             placeholder="suit-sets"
-            hint="URL path — lowercase, hyphenated"
+            hint="SEO task 17. The category address, such as /categories/suit-sets. Use lowercase words and hyphens."
             required
           />
         </div>
@@ -80,8 +87,16 @@ export default function CategoryForm({ initial = {} }) {
           label="Short blurb"
           name="blurb"
           defaultValue={initial.blurb}
-          placeholder="Embroidered & festive suits"
+          hint="SEO task 3. Short intro under the category heading."
           rows={2}
+        />
+        <Textarea
+          label="Direct answer"
+          name="answerText"
+          defaultValue={initial.answerText}
+          placeholder="Suit sets are matching ethnic outfits with a kurta, bottom, and dupatta."
+          rows={3}
+          hint="SEO task 12. One or two plain sentences that answer what this category is."
         />
         <Input label="Upload image" type="file" accept="image/*" onChange={uploadImage} />
         <Input
@@ -101,6 +116,8 @@ export default function CategoryForm({ initial = {} }) {
           </div>
         ) : null}
       </AdminFormSection>
+
+      <SeoFields initial={initial} url={initial.slug ? `/categories/${initial.slug}` : ''} />
 
       <div className="flex flex-wrap items-center gap-3 border-t border-black/6 pt-5">
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
