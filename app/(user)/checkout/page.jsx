@@ -6,7 +6,9 @@ import { api } from '@/lib/apiClient';
 import { draftFromUser, emptyShipping, streetIsBlank } from '@/lib/addressBook';
 import { useCatalog } from '@/components/user/CatalogProvider';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import CheckoutForm from '@/components/user/CheckoutForm';
+import LineOptions from '@/components/user/LineOptions';
 import GoogleAuthButton from '@/components/user/GoogleAuthButton';
 import {
   ShoppingBag,
@@ -22,11 +24,13 @@ import {
   ChevronRight,
   RefreshCw,
   Tag,
+  Trash2,
   X,
 } from 'lucide-react';
 
 export default function CheckoutPage() {
-  const { cartItems, user, authReady, refreshSession } = useCatalog();
+  const router = useRouter();
+  const { cartItems, user, authReady, refreshSession, removeFromCart } = useCatalog();
   const [step, setStep] = useState(1);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Cash on Delivery');
@@ -119,6 +123,17 @@ export default function CheckoutPage() {
       setCouponError(err.message);
     } finally {
       setCouponBusy(false);
+    }
+  }
+
+  async function removeItem(productId) {
+    const leavingCheckout = cartItems.length <= 1;
+    try {
+      await removeFromCart(productId);
+      setError('');
+      if (leavingCheckout) router.push('/cart');
+    } catch (err) {
+      setError(err.message);
     }
   }
 
@@ -286,7 +301,7 @@ export default function CheckoutPage() {
 
             <div className="space-y-3 border-t border-black/[0.06] pt-4">
               {cartItems.map((item) => (
-                <div key={item.id} className="flex items-center gap-3">
+                <div key={item.lineId || item.id} className="flex items-center gap-3">
                   <img
                     src={item.image}
                     alt={item.name}
@@ -294,6 +309,7 @@ export default function CheckoutPage() {
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-neutral-950">{item.name}</p>
+                    <LineOptions options={item.options} sku={item.sku} />
                     <p className="text-xs text-neutral-500">Qty: {item.qty}</p>
                   </div>
                   <p className="text-sm font-semibold tabular-nums text-neutral-950">
@@ -325,7 +341,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="relative mx-auto max-w-7xl px-4 py-8 md:py-12">
+    <div className="relative mx-auto max-w-[1400px] px-4 py-8 sm:px-6 md:py-12 lg:px-8">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(ellipse_at_top,_rgba(208,177,90,0.08),_transparent_60%)]"
@@ -525,7 +541,7 @@ export default function CheckoutPage() {
                 ) : null}
                 <div className="space-y-3 rounded-2xl bg-[#faf7f3] p-4 ring-1 ring-black/[0.04]">
                   {cartItems.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3">
+                    <div key={item.lineId || item.id} className="flex items-center gap-3">
                       <img
                         src={item.image}
                         alt={item.name}
@@ -533,6 +549,7 @@ export default function CheckoutPage() {
                       />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-neutral-950">{item.name}</p>
+                        <LineOptions options={item.options} sku={item.sku} />
                         <p className="text-xs text-neutral-500">
                           Qty {item.qty} · ₹{item.price.toLocaleString('en-IN')}
                         </p>
@@ -626,7 +643,7 @@ export default function CheckoutPage() {
             <div className="p-6">
               <div className="mb-5 max-h-64 space-y-3.5 overflow-y-auto">
                 {cartItems.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3">
+                  <div key={item.lineId || item.id} className="flex items-center gap-3">
                     <div className="relative shrink-0">
                       <img
                         src={item.image}
@@ -639,9 +656,19 @@ export default function CheckoutPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-neutral-950">{item.name}</p>
+                      <LineOptions options={item.options} sku={item.sku} />
                       <p className="text-xs text-neutral-500">
                         ₹{item.price.toLocaleString('en-IN')}
                       </p>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(item.lineId || item.id)}
+                        aria-label={`Remove ${item.name}`}
+                        className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-red-600 transition hover:text-red-700"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Remove
+                      </button>
                     </div>
                     <p className="shrink-0 text-sm font-semibold tabular-nums text-neutral-950">
                       ₹{(item.price * item.qty).toLocaleString('en-IN')}

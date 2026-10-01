@@ -28,8 +28,13 @@ export default function ProductTable({ products = [], onDelete }) {
                       alt=""
                       className="h-11 w-11 rounded-lg object-cover object-top ring-1 ring-black/5"
                     />
-                    <span className="max-w-[7.5rem] truncate font-medium text-neutral-900 sm:max-w-[220px]">
-                      {p.name}
+                    <span className="min-w-0">
+                      <span className="block max-w-[7.5rem] truncate font-medium text-neutral-900 sm:max-w-[220px]">
+                        {p.name}
+                      </span>
+                      {p.sku ? (
+                        <span className="block truncate text-xs text-neutral-500">SKU {p.sku}</span>
+                      ) : null}
                     </span>
                   </div>
                 </td>

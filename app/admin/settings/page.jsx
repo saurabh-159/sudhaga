@@ -1,11 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminFormSection from '@/components/admin/AdminFormSection';
-import { BRAND } from '@/lib/brand';
 
 export default function AdminSettings() {
   return (
@@ -20,12 +20,21 @@ export default function AdminSettings() {
         className="space-y-5"
       >
         <AdminFormSection
-          title="Store profile"
-          description="Public name and support contact shown to customers."
+          title="Seller and policies"
+          description="Contact details, the grievance officer, and the shipping, returns, privacy, and terms pages."
         >
-          <Input label="Store name" defaultValue={BRAND.name} />
-          <Input label="Tagline" defaultValue={BRAND.tagline} />
-          <Input label="Support email" type="email" defaultValue="support@sudhaga.com" />
+          <Link href="/admin/policies" className="text-sm font-medium text-neutral-950 underline">
+            Edit policies
+          </Link>
+        </AdminFormSection>
+
+        <AdminFormSection
+          title="Footer"
+          description="Help and social links. Admins can change the text and paste a page or profile URL."
+        >
+          <Link href="/admin/footer" className="text-sm font-medium text-neutral-950 underline">
+            Edit footer links
+          </Link>
         </AdminFormSection>
 
         <AdminFormSection

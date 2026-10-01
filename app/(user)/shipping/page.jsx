@@ -1,21 +1,28 @@
+import LegalPage from '@/components/user/LegalPage';
+import { loadPublicPolicy } from '@/lib/policies';
 import { pageHead } from '@/lib/pageMeta';
+import { metaDescription } from '@/lib/site';
+import { FREE_SHIPPING_OVER, SHIPPING_FEE } from '@/lib/pricing';
 
-export const metadata = pageHead({
-  title: 'Shipping',
-  description: 'Sudhaga shipping times, charges, and delivery. Free shipping on orders over ₹999.',
-  canonical: '/shipping',
-});
+export async function generateMetadata() {
+  const policy = await loadPublicPolicy('shipping');
+  return pageHead({
+    title: policy?.title || 'Shipping',
+    description: metaDescription(policy?.summary || policy?.body, 'Sudhaga shipping times, charges, and delivery.'),
+    canonical: '/shipping',
+  });
+}
 
-export default function ShippingPage() {
+export default async function ShippingPage() {
+  const policy = await loadPublicPolicy('shipping');
   return (
-    <article className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-3xl font-bold tracking-tight text-neutral-950">Shipping</h1>
-      <p className="mt-4 text-sm leading-relaxed text-neutral-600">
-        Orders are packed after payment. Delivery time depends on the address entered at checkout.
-      </p>
-      <p className="mt-4 text-sm leading-relaxed text-neutral-600">
-        Shipping is free on orders over ₹999. Smaller orders include a delivery fee shown before you pay.
-      </p>
-    </article>
+    <LegalPage
+      policy={policy}
+      lead={
+        <p>
+          Shipping is free on orders over ₹{FREE_SHIPPING_OVER}. Smaller orders include a delivery fee of ₹{SHIPPING_FEE}, shown at checkout before you pay.
+        </p>
+      }
+    />
   );
 }

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { api, shapeOrder } from '@/lib/apiClient';
 import { productPath } from '@/lib/storePath';
+import LineOptions from '@/components/user/LineOptions';
 
 const statusSteps = [
   { key: 'Ordered', label: 'Order placed', desc: 'We received your order' },
@@ -442,13 +443,7 @@ export default function OrderDetails() {
                       </h3>
                     </Link>
 
-                    <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[11px] text-neutral-500">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f6f1ea] px-2.5 py-1">
-                        <span className="h-2 w-2 rounded-full bg-neutral-900" />
-                        Black
-                      </span>
-                      <span className="rounded-full bg-[#f6f1ea] px-2.5 py-1">Size M</span>
-                    </div>
+                    <LineOptions options={item.options} sku={item.sku} />
 
                     <div className="mt-3 flex items-center justify-between">
                       <p className="text-xs text-neutral-500">

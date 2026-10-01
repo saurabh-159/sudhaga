@@ -17,6 +17,8 @@ import {
   ImageIcon,
   MessageSquare,
   Newspaper,
+  Scale,
+  Link2,
   X,
 } from 'lucide-react';
 import { BRAND } from '@/lib/brand';
@@ -32,6 +34,8 @@ const links = [
   { href: '/admin/banners', label: 'Homepage', icon: ImageIcon },
   { href: '/admin/testimonials', label: 'Reviews', icon: MessageSquare },
   { href: '/admin/articles', label: 'Blog', icon: Newspaper },
+  { href: '/admin/policies', label: 'Policies', icon: Scale },
+  { href: '/admin/footer', label: 'Footer', icon: Link2 },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];

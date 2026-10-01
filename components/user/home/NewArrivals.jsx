@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { productPath, productAlt } from '@/lib/storePath';
 import ProductImage from '@/components/user/ProductImage';
-import { Zap } from 'lucide-react';
+import ReadyToShipButton from '@/components/user/ReadyToShipButton';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import ProductQuickActions from '@/components/user/ProductQuickActions';
 import 'swiper/css';
@@ -49,12 +49,7 @@ function ArrivalCard({ product }) {
           <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.16em] text-neutral-400 sm:text-[11px] sm:tracking-[0.18em]">
             {categoryLabel(product.category)}
           </p>
-          {product.stock > 0 ? (
-            <span className="mt-2.5 hidden w-fit items-center gap-1.5 rounded-md bg-neutral-900 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white sm:inline-flex">
-              Ready to ship
-              <Zap className="h-3.5 w-3.5 fill-white" />
-            </span>
-          ) : null}
+          {product.stock > 0 ? <ReadyToShipButton product={product} /> : null}
         </div>
 
         <div className="flex shrink-0 flex-row flex-wrap items-center gap-x-2 gap-y-1 sm:flex-col sm:items-end sm:text-right">

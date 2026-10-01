@@ -36,7 +36,7 @@ export default async function HomePage() {
   return (
     <>
       <JsonLd data={siteSchema()} />
-      <div className="mx-auto w-full overflow-x-clip px-4">
+      <div className="mx-auto w-full max-w-[1400px] overflow-x-clip px-4 sm:px-6 lg:px-8">
       <h1 className="mx-auto mb-6 max-w-3xl pt-6 text-center text-2xl font-bold tracking-tight text-neutral-950 md:text-3xl">
         Ethnic wear for every celebration
       </h1>

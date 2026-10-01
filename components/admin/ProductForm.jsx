@@ -36,11 +36,12 @@ function savedCombinations(attributes) {
             slug: option.slug,
             value: String(option.value),
           }));
-        return options.length ? { price: Number(row.price), options } : null;
+        return options.length ? { price: Number(row.price), sku: row.sku || '', options } : null;
       }
       if (row?.slug && row.value != null && row.amount != null) {
         return {
           price: Number(row.amount),
+          sku: row.sku || '',
           options: [
             {
               name: row.name || attributeBySlug(row.slug)?.name || row.slug,
@@ -230,6 +231,7 @@ export default function ProductForm({ initial = {} }) {
       featured,
       bestSeller,
       attributes: combinations.map((row) => ({
+        sku: row.sku || '',
         price: row.price,
         options: row.options.map(({ name, slug, value }) => ({ name, slug, value })),
       })),
@@ -285,6 +287,15 @@ export default function ProductForm({ initial = {} }) {
           <Input label="Original price (₹)" name="originalPrice" type="number" min="0" defaultValue={initial.originalPrice} placeholder="7999" hint="Shown as struck-through MRP" />
           <Input label="Stock" name="stock" type="number" min="0" defaultValue={initial.stock} placeholder="12" required />
         </div>
+        <p className="text-sm text-neutral-600">
+          {initial.sku ? (
+            <>
+              Product SKU <span className="font-medium text-neutral-900">{initial.sku}</span>
+            </>
+          ) : (
+            'A unique product SKU is created when you save. Colour and size combinations get their own SKUs.'
+          )}
+        </p>
       </AdminFormSection>
 
       <AdminFormSection
@@ -313,7 +324,7 @@ export default function ProductForm({ initial = {} }) {
 
       <AdminFormSection
         title="Attributes"
-        description="Choose the attributes for this product, then add each combination with its price. Remove any combination you do not want to sell."
+        description="Each colour, size, and other combination gets its own SKU. That SKU is saved on the order, so you can see exactly which dress was bought."
       >
         {availableTypes.length > 0 ? (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -411,7 +422,10 @@ export default function ProductForm({ initial = {} }) {
               <li key={`${combinationKey(row.options)}-${row.price}`} className="flex items-center justify-between gap-3 bg-white px-4 py-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-neutral-900">{combinationLabel(row.options)}</p>
-                  <p className="text-xs text-neutral-500">₹{row.price.toLocaleString('en-IN')}</p>
+                  <p className="text-xs text-neutral-500">
+                    ₹{row.price.toLocaleString('en-IN')}
+                    {row.sku ? ` · SKU ${row.sku}` : ' · SKU is created when you save'}
+                  </p>
                 </div>
                 <button
                   type="button"

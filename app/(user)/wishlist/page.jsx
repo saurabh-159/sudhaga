@@ -9,7 +9,7 @@ export default function WishlistPage() {
   const { wishlistItems: items, user } = useCatalog();
 
   return (
-    <div className="relative mx-auto max-w-7xl px-4 py-8 md:py-12">
+    <div className="relative mx-auto max-w-[1400px] px-4 py-8 sm:px-6 md:py-12 lg:px-8">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(ellipse_at_top,_rgba(208,177,90,0.08),_transparent_60%)]"

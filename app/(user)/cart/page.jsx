@@ -39,7 +39,7 @@ export default function CartPage() {
   const itemCount = items.reduce((s, i) => s + i.qty, 0);
 
   return (
-    <div className="relative mx-auto max-w-7xl px-4 py-8 md:py-12">
+    <div className="relative mx-auto max-w-[1400px] px-4 py-8 sm:px-6 md:py-12 lg:px-8">
       {/* soft page wash */}
       <div
         aria-hidden
@@ -159,7 +159,7 @@ export default function CartPage() {
 
             <div className="space-y-3">
               {items.map((item) => (
-                <CartItem key={item.id} item={item} onRemove={remove} onQtyChange={changeQty} />
+                <CartItem key={item.lineId || item.id} item={item} onRemove={remove} onQtyChange={changeQty} />
               ))}
             </div>
 

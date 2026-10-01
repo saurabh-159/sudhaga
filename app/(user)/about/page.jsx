@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { BRAND } from '@/lib/brand';
 import { pageHead } from '@/lib/pageMeta';
+import { getStoreProfile } from '@/lib/storeProfile';
 
 export const metadata = pageHead({
   title: 'About',
@@ -8,13 +9,14 @@ export const metadata = pageHead({
   canonical: '/about',
 });
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const profile = await getStoreProfile();
   return (
     <article className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-3xl font-bold tracking-tight text-neutral-950">About {BRAND.name}</h1>
+      <h1 className="text-3xl font-bold tracking-tight text-neutral-950">About {profile.legalName}</h1>
       <p className="mt-4 text-sm leading-relaxed text-neutral-600">
-        {BRAND.name} sells ethnic wear for celebrations and everyday dressing. {BRAND.tagline}. Orders are placed on this
-        website, and support is available at support@sudhaga.com.
+        {profile.legalName} sells ethnic wear for celebrations and everyday dressing. {BRAND.tagline}. Orders are placed
+        on this website, and support is available at {profile.email}.
       </p>
       <p className="mt-4 text-sm leading-relaxed text-neutral-600">
         Questions about an order, a return, or shipping can go through the contact page.

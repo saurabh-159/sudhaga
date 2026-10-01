@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { Heart, ShoppingBag } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, Heart, Share2, ShoppingBag } from 'lucide-react';
 import { useCatalog } from '@/components/user/CatalogProvider';
+import { shareProduct } from '@/lib/shareProduct';
+import { defaultVariant } from '@/lib/variants';
 
 export function ProductCartButton({ product, overlay = false, compact = false }) {
   const { addToCart, cartItems } = useCatalog();
@@ -15,7 +17,7 @@ export function ProductCartButton({ product, overlay = false, compact = false })
     if (pending) return;
     setPending(true);
     try {
-      await addToCart(product.id, 1, product);
+      await addToCart(product.id, 1, product, defaultVariant(product));
     } finally {
       setPending(false);
     }
@@ -45,11 +47,25 @@ export function ProductCartButton({ product, overlay = false, compact = false })
 export default function ProductQuickActions({ product, compact = false, showCart = true }) {
   const { toggleWishlist, isWishlisted } = useCatalog();
   const saved = isWishlisted(product.id);
+  const [shared, setShared] = useState(false);
+  const timer = useRef(null);
+
+  useEffect(() => () => clearTimeout(timer.current), []);
 
   async function onWish(event) {
     event.preventDefault();
     event.stopPropagation();
     await toggleWishlist(product.id);
+  }
+
+  async function onShare(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const result = await shareProduct(product);
+    if (result !== 'copied' && result !== 'shared') return;
+    setShared(true);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setShared(false), 2000);
   }
 
   const size = compact ? 'h-9 w-9' : 'h-10 w-10';
@@ -67,6 +83,18 @@ export default function ProductQuickActions({ product, compact = false, showCart
         }`}
       >
         <Heart className={`${icon} ${saved ? 'fill-[#e11d6a]' : ''}`} strokeWidth={1.75} />
+      </button>
+      <button
+        type="button"
+        aria-label={shared ? `Link copied for ${product.name}` : `Share ${product.name}`}
+        onClick={onShare}
+        className={`flex ${size} items-center justify-center rounded-full bg-white/90 text-neutral-800 shadow-sm ring-1 ring-black/5 backdrop-blur-md transition duration-300 hover:scale-105 hover:bg-white active:scale-95`}
+      >
+        {shared ? (
+          <Check className={`${icon} text-emerald-600`} strokeWidth={1.75} />
+        ) : (
+          <Share2 className={icon} strokeWidth={1.75} />
+        )}
       </button>
       {showCart ? <ProductCartButton product={product} overlay compact={compact} /> : null}
     </div>

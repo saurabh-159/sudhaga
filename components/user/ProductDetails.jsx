@@ -1,13 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Button from '@/components/ui/Button';
 import { useCatalog } from '@/components/user/CatalogProvider';
 import ProductCard from '@/components/user/ProductCard';
 import ProductImage from '@/components/user/ProductImage';
 import Breadcrumbs from '@/components/user/Breadcrumbs';
 import { productAlt, productCrumbs } from '@/lib/storePath';
+import { shareProduct } from '@/lib/shareProduct';
+import { lockBodyScroll } from '@/lib/scrollLock';
+import { chooseVariant, matchVariant, selectionOf, skuWithOptions, variantGroups } from '@/lib/variants';
 import { useRouter } from 'next/navigation';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import 'swiper/css';
@@ -26,7 +30,116 @@ import {
   Flame,
   BadgeCheck,
   PenLine,
+  X,
 } from 'lucide-react';
+
+const SIZE_GUIDE = [
+  { size: 'XS', bust: '32" / 81 cm', waist: '26" / 66 cm', hip: '35" / 89 cm' },
+  { size: 'S', bust: '34" / 86 cm', waist: '28" / 71 cm', hip: '37" / 94 cm' },
+  { size: 'M', bust: '36" / 91 cm', waist: '30" / 76 cm', hip: '39" / 99 cm' },
+  { size: 'L', bust: '38" / 97 cm', waist: '32" / 81 cm', hip: '41" / 104 cm' },
+  { size: 'XL', bust: '40" / 102 cm', waist: '34" / 86 cm', hip: '43" / 109 cm' },
+];
+
+const MEASURE_STEPS = [
+  { label: 'Bust', text: 'Around the fullest part of the chest, tape level with the floor.' },
+  { label: 'Waist', text: 'Around the natural waist, where the body narrows.' },
+  { label: 'Hip', text: 'Around the fullest part of the hips, about 8 inches below the waist.' },
+];
+
+const FALLBACK_COLORS = [
+  { name: 'Black', className: 'bg-neutral-950' },
+  { name: 'White', className: 'bg-white ring-1 ring-black/15' },
+  { name: 'Navy', className: 'bg-blue-950' },
+  { name: 'Maroon', className: 'bg-red-900' },
+];
+
+const FALLBACK_SIZES = ['XS', 'S', 'M', 'L', 'XL'];
+
+function SizeGuideDialog({ selectedSize, availableSizes, onSelect, onClose }) {
+  return (
+    <div className="fixed inset-0 z-[80]">
+      <button type="button" aria-label="Close size guide" className="absolute inset-0 bg-black/45" onClick={onClose} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="size-guide-title"
+        className="absolute left-1/2 top-1/2 flex max-h-[min(88vh,640px)] w-[min(100%-1.5rem,36rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden bg-white shadow-[0_24px_80px_rgba(22,19,17,0.22)]"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-black/[0.06] px-5 py-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500">Fit</p>
+            <h2 id="size-guide-title" className="mt-1 text-lg font-medium text-neutral-950">
+              Size guide
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close size guide"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-neutral-700 transition hover:bg-[#f3ebe3]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto px-5 py-5">
+          <p className="text-sm leading-relaxed text-neutral-600">
+            Body measurements for kurta, lehenga, and suit sets. If you fall between two sizes, pick the larger one.
+            Tap a size to select it.
+          </p>
+
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[28rem] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-black/[0.08] text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                  <th className="py-2.5 pr-3 font-semibold">Size</th>
+                  <th className="py-2.5 pr-3 font-semibold">Bust</th>
+                  <th className="py-2.5 pr-3 font-semibold">Waist</th>
+                  <th className="py-2.5 font-semibold">Hip</th>
+                </tr>
+              </thead>
+              <tbody>
+                {SIZE_GUIDE.map((row) => {
+                  const offered = availableSizes.includes(row.size);
+                  const active = selectedSize === row.size;
+                  return (
+                    <tr key={row.size} className={active ? 'bg-[#f6f1ea]' : 'border-b border-black/[0.04]'}>
+                      <td className="py-2.5 pr-3">
+                        <button
+                          type="button"
+                          disabled={!offered}
+                          onClick={() => onSelect(row.size)}
+                          className={`min-w-10 px-2 py-1 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
+                            active ? 'bg-neutral-950 text-white' : 'text-neutral-950 hover:bg-neutral-100'
+                          }`}
+                        >
+                          {row.size}
+                        </button>
+                      </td>
+                      <td className="py-2.5 pr-3 text-neutral-700">{row.bust}</td>
+                      <td className="py-2.5 pr-3 text-neutral-700">{row.waist}</td>
+                      <td className="py-2.5 text-neutral-700">{row.hip}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            {MEASURE_STEPS.map((step) => (
+              <div key={step.label} className="bg-[#faf7f3] px-3 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">{step.label}</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-neutral-700">{step.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function categoryLabel(slug) {
   if (!slug) return '';
@@ -34,6 +147,31 @@ function categoryLabel(slug) {
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+const COLOR_CLASS = {
+  black: 'bg-neutral-950',
+  white: 'bg-white ring-1 ring-black/15',
+  red: 'bg-red-700',
+  pink: 'bg-pink-400',
+  orange: 'bg-orange-500',
+  purple: 'bg-purple-800',
+  blue: 'bg-blue-800',
+  navy: 'bg-blue-950',
+  green: 'bg-emerald-700',
+  beige: 'bg-[#e6d3b3]',
+  gold: 'bg-amber-400',
+  maroon: 'bg-red-900',
+  yellow: 'bg-yellow-300',
+  cream: 'bg-[#f3e6d0]',
+  grey: 'bg-neutral-400',
+  gray: 'bg-neutral-400',
+};
+
+const LIGHT_COLORS = new Set(['white', 'beige', 'gold', 'yellow', 'cream', 'ivory', 'pink']);
+
+function colorClass(name) {
+  return COLOR_CLASS[String(name || '').trim().toLowerCase()] || 'bg-neutral-300';
 }
 
 function buildGallery(product) {
@@ -48,13 +186,40 @@ export default function ProductDetails({ product, relatedProducts = [] }) {
   const wishlisted = isWishlisted(product.id);
   const [activeImage, setActiveImage] = useState(0);
   const [cartError, setCartError] = useState('');
-  const [selectedColor, setSelectedColor] = useState('Black');
-  const [selectedSize, setSelectedSize] = useState('M');
+  const [picked, setPicked] = useState(null);
+  const [pickedFor, setPickedFor] = useState(product.id);
+  if (pickedFor !== product.id) {
+    setPickedFor(product.id);
+    setPicked(null);
+  }
+  const selection = picked || selectionOf(product.attributes?.[0]);
+  const [fallbackColor, setFallbackColor] = useState('Black');
+  const [fallbackSize, setFallbackSize] = useState('M');
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('description');
   const [copied, setCopied] = useState(false);
 
   const gallery = buildGallery(product);
+  const groups = variantGroups(product.attributes);
+  const sizeGroup = groups.find((group) => group.slug === 'size');
+  const colorGroup = groups.find((group) => group.slug === 'color' || group.slug === 'colour');
+  const sizes = sizeGroup?.values?.length ? sizeGroup.values : FALLBACK_SIZES;
+  const selectedSize = sizeGroup ? selection[sizeGroup.slug] || sizes[0] : fallbackSize;
+  const selectedColor = colorGroup ? selection[colorGroup.slug] || colorGroup.values[0] : fallbackColor;
+  const colorChoices = colorGroup?.values?.length
+    ? colorGroup.values.map((name) => ({ name, className: colorClass(name) }))
+    : FALLBACK_COLORS;
+  const active = matchVariant(product.attributes, selection) || product.attributes?.[0] || null;
+  const activePrice = active && product.attributes?.length ? Number(active.price) : Number(product.price || 0);
+  const activeSku = active?.sku || product.sku || '';
+  const lineOptions = groups.length
+    ? active?.options || []
+    : [
+        { name: 'Color', slug: 'color', value: selectedColor },
+        { name: 'Size', slug: 'size', value: selectedSize },
+      ];
+  const displaySku = groups.length ? activeSku : skuWithOptions(product.sku, lineOptions) || activeSku;
   const inStock = Number(product.stock ?? 0) > 0;
   const reviewCount = Number(product.numReviews || 0);
   const catalogRelated = products
@@ -62,22 +227,31 @@ export default function ProductDetails({ product, relatedProducts = [] }) {
     .slice(0, 4);
   const related = (relatedProducts.length ? relatedProducts : catalogRelated).slice(0, 4);
 
-  const colors = [
-    { name: 'Black', class: 'bg-gray-900' },
-    { name: 'White', class: 'bg-white border border-gray-300' },
-    { name: 'Navy', class: 'bg-blue-900' },
-    { name: 'Maroon', class: 'bg-red-800' },
-  ];
-
-  const sizes = ['XS', 'S', 'M', 'L', 'XL'];
-
   const discount =
-    product.originalPrice && product.price && product.originalPrice > product.price
-      ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    product.originalPrice && activePrice && product.originalPrice > activePrice
+      ? Math.round(((product.originalPrice - activePrice) / product.originalPrice) * 100)
       : 0;
 
   const stockLeft = product.stock ?? 10;
   const stockPercent = Math.min(100, (stockLeft / 50) * 100);
+
+  useEffect(() => {
+    if (!sizeGuideOpen) return undefined;
+    const unlock = lockBodyScroll();
+    function onKey(event) {
+      if (event.key === 'Escape') setSizeGuideOpen(false);
+    }
+    document.addEventListener('keydown', onKey);
+    return () => {
+      unlock();
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [sizeGuideOpen]);
+
+  function selectOption(slug, value) {
+    const row = chooseVariant(product.attributes, selection, slug, value);
+    if (row) setPicked(selectionOf(row));
+  }
 
   async function saveWishlist() {
     setCartError('');
@@ -91,7 +265,10 @@ export default function ProductDetails({ product, relatedProducts = [] }) {
   async function addItem(goCheckout) {
     setCartError('');
     try {
-      await addToCart(product.id, quantity, product);
+      await addToCart(product.id, quantity, product, {
+        sku: displaySku,
+        options: lineOptions,
+      });
       if (goCheckout) {
         closeCart();
         router.push('/checkout');
@@ -102,22 +279,19 @@ export default function ProductDetails({ product, relatedProducts = [] }) {
   }
 
   const copyShareLink = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* ignore */
-    }
+    const result = await shareProduct(product, window.location.href);
+    if (result !== 'copied' && result !== 'shared') return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="mx-auto max-w-8xl px-4 py-6 pb-28 md:py-8 lg:pb-8">
+    <div className="mx-auto max-w-[1400px] px-4 py-6 pb-28 sm:px-6 md:py-8 lg:px-8 lg:pb-8">
       <Breadcrumbs items={productCrumbs(product)} />
 
       <div className="grid items-start gap-8 lg:grid-cols-2 lg:gap-10 xl:gap-12">
         {/* LEFT — sticky gallery: thumbs column + main image */}
-        <div className="flex w-full flex-col-reverse gap-3 lg:sticky lg:top-[8.75rem] lg:flex-row lg:items-stretch lg:gap-4 lg:self-start">
+        <div className="flex w-full flex-col-reverse gap-3 lg:sticky lg:top-[7.75rem] lg:flex-row lg:items-stretch lg:gap-4 lg:self-start">
           <div className="flex gap-2 overflow-x-auto pb-1 lg:w-20 lg:shrink-0 lg:flex-col lg:justify-start lg:gap-3 lg:overflow-visible lg:pb-0">
             {gallery.map((img, i) => (
               <button
@@ -237,84 +411,157 @@ export default function ProductDetails({ product, relatedProducts = [] }) {
 
           <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-y border-neutral-200/80 py-5">
             <span className="text-3xl font-medium tracking-tight text-neutral-950 md:text-[2.35rem]">
-              ₹{product.price?.toLocaleString('en-IN')}
+              ₹{activePrice.toLocaleString('en-IN')}
             </span>
-            {product.originalPrice && product.originalPrice > product.price ? (
+            {product.originalPrice && product.originalPrice > activePrice ? (
               <span className="text-base text-neutral-400 line-through">
                 ₹{product.originalPrice.toLocaleString('en-IN')}
               </span>
             ) : null}
             {discount > 0 ? (
               <span className="text-sm font-medium text-emerald-700">
-                Save ₹{(product.originalPrice - product.price).toLocaleString('en-IN')} ({discount}% off)
+                Save ₹{(product.originalPrice - activePrice).toLocaleString('en-IN')} ({discount}% off)
               </span>
             ) : null}
           </div>
+          {activeSku ? (
+            <p className="mt-3 text-xs tracking-wide text-neutral-500">
+              SKU <span className="font-medium text-neutral-900">{displaySku}</span>
+            </p>
+          ) : null}
 
           <p className="mt-5 text-[15px] leading-relaxed text-neutral-600">
             {product.description ||
               'Premium quality product crafted with care. Features modern design, durable materials, and exceptional performance.'}
           </p>
 
-          <div className="mt-8">
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
-              Colour — <span className="text-neutral-900">{selectedColor}</span>
-            </p>
-            <div className="flex flex-wrap gap-3">
-              {colors.map((c) => (
-                <button
-                  key={c.name}
-                  type="button"
-                  onClick={() => setSelectedColor(c.name)}
-                  aria-label={c.name}
-                  title={c.name}
-                  className={`relative h-9 w-9 rounded-full transition ${c.class} ${
-                    selectedColor === c.name
-                      ? 'ring-2 ring-neutral-950 ring-offset-2'
-                      : 'ring-1 ring-black/10 hover:ring-black/25'
-                  }`}
-                >
-                  {selectedColor === c.name ? (
-                    <Check
-                      className={`absolute inset-0 m-auto h-3.5 w-3.5 ${
-                        c.name === 'White' ? 'text-neutral-900' : 'text-white'
-                      }`}
-                    />
-                  ) : null}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
-                Size — <span className="text-neutral-900">{selectedSize}</span>
+          {groups.length === 0 ? (
+            <div className="mt-8">
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                Colour — <span className="text-neutral-900">{selectedColor}</span>
               </p>
-              <button
-                type="button"
-                className="text-xs text-neutral-500 underline decoration-neutral-300 underline-offset-4 transition hover:text-neutral-900 hover:decoration-neutral-900"
-              >
-                Size guide
-              </button>
+              <div className="flex flex-wrap gap-3">
+                {colorChoices.map((color) => (
+                  <button
+                    key={color.name}
+                    type="button"
+                    onClick={() => setFallbackColor(color.name)}
+                    aria-label={color.name}
+                    title={color.name}
+                    className={`relative h-9 w-9 rounded-full transition ${color.className} ${
+                      selectedColor === color.name
+                        ? 'ring-2 ring-neutral-950 ring-offset-2'
+                        : 'ring-1 ring-black/10 hover:ring-black/25'
+                    }`}
+                  >
+                    {selectedColor === color.name ? (
+                      <Check
+                        className={`absolute inset-0 m-auto h-3.5 w-3.5 ${
+                          color.name === 'White' ? 'text-neutral-900' : 'text-white'
+                        }`}
+                      />
+                    ) : null}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {sizes.map((s) => (
+          ) : null}
+
+          {groups.map((group) => {
+            const isColor = group.slug === 'color' || group.slug === 'colour';
+            const isSize = group.slug === 'size';
+            const selected = selection[group.slug];
+            return (
+              <div key={group.slug} className="mt-8">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                    {group.name} — <span className="text-neutral-900">{selected}</span>
+                  </p>
+                  {isSize ? (
+                    <button
+                      type="button"
+                      onClick={() => setSizeGuideOpen(true)}
+                      className="text-xs font-medium text-neutral-700 underline decoration-neutral-400 underline-offset-4 transition hover:text-neutral-950 hover:decoration-neutral-950"
+                    >
+                      Size guide
+                    </button>
+                  ) : null}
+                </div>
+                <div className={`flex flex-wrap ${isColor ? 'gap-3' : 'gap-2'}`}>
+                  {group.values.map((value) =>
+                    isColor ? (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => selectOption(group.slug, value)}
+                        aria-label={value}
+                        title={value}
+                        className={`relative h-9 w-9 rounded-full transition ${colorClass(value)} ${
+                          selected === value
+                            ? 'ring-2 ring-neutral-950 ring-offset-2'
+                            : 'ring-1 ring-black/10 hover:ring-black/25'
+                        }`}
+                      >
+                        {selected === value ? (
+                          <Check
+                            className={`absolute inset-0 m-auto h-3.5 w-3.5 ${
+                              LIGHT_COLORS.has(String(value).toLowerCase()) ? 'text-neutral-900' : 'text-white'
+                            }`}
+                          />
+                        ) : null}
+                      </button>
+                    ) : (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => selectOption(group.slug, value)}
+                        className={`h-11 min-w-[3.15rem] px-3.5 text-sm font-medium transition ${
+                          selected === value
+                            ? 'bg-neutral-950 text-white'
+                            : 'bg-[#f6f1ea] text-neutral-800 ring-1 ring-black/5 hover:bg-neutral-200/70'
+                        }`}
+                      >
+                        {value}
+                      </button>
+                    ),
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {groups.length === 0 ? (
+            <div className="mt-8">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                  Size — <span className="text-neutral-900">{selectedSize}</span>
+                </p>
                 <button
-                  key={s}
                   type="button"
-                  onClick={() => setSelectedSize(s)}
-                  className={`h-11 min-w-[3.15rem] px-3.5 text-sm font-medium transition ${
-                    selectedSize === s
-                      ? 'bg-neutral-950 text-white'
-                      : 'bg-[#f6f1ea] text-neutral-800 ring-1 ring-black/5 hover:bg-neutral-200/70'
-                  }`}
+                  onClick={() => setSizeGuideOpen(true)}
+                  className="text-xs font-medium text-neutral-700 underline decoration-neutral-400 underline-offset-4 transition hover:text-neutral-950 hover:decoration-neutral-950"
                 >
-                  {s}
+                  Size guide
                 </button>
-              ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {sizes.map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => setFallbackSize(size)}
+                    className={`h-11 min-w-[3.15rem] px-3.5 text-sm font-medium transition ${
+                      selectedSize === size
+                        ? 'bg-neutral-950 text-white'
+                        : 'bg-[#f6f1ea] text-neutral-800 ring-1 ring-black/5 hover:bg-neutral-200/70'
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <div className="mt-7 flex items-center gap-3 border-l-2 border-neutral-950/80 bg-[#f6f1ea] px-4 py-3">
             <Flame className="h-4 w-4 shrink-0 text-neutral-800" strokeWidth={1.75} />
@@ -477,7 +724,8 @@ export default function ProductDetails({ product, relatedProducts = [] }) {
               <div className="grid sm:grid-cols-2">
                 {[
                   { label: 'Brand', value: 'Sudhaga' },
-                  { label: 'SKU', value: product.id?.toUpperCase() || 'N/A' },
+                  { label: 'SKU', value: displaySku || 'N/A' },
+                  ...lineOptions.map((option) => ({ label: option.name, value: option.value })),
                   { label: 'Material', value: 'Premium Blend' },
                   { label: 'Category', value: categoryLabel(product.category) },
                   { label: 'Stock', value: `${stockLeft} pieces` },
@@ -854,9 +1102,25 @@ export default function ProductDetails({ product, relatedProducts = [] }) {
 
         <Button className="h-12 min-w-0 flex-1 gap-2 px-3 text-sm" onClick={() => addItem(false)} disabled={!inStock}>
           <ShoppingCart className="h-4 w-4 shrink-0" />
-          <span className="truncate">{inStock ? `Add · ₹${product.price?.toLocaleString('en-IN')}` : 'Out of stock'}</span>
+          <span className="truncate">{inStock ? `Add · ₹${activePrice.toLocaleString('en-IN')}` : 'Out of stock'}</span>
         </Button>
       </div>
+
+      {sizeGuideOpen
+        ? createPortal(
+            <SizeGuideDialog
+              selectedSize={selectedSize}
+              availableSizes={sizes}
+              onSelect={(size) => {
+                if (sizeGroup) selectOption(sizeGroup.slug, size);
+                else setFallbackSize(size);
+                setSizeGuideOpen(false);
+              }}
+              onClose={() => setSizeGuideOpen(false)}
+            />,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import Category from '@/models/Category';
 import { requireAdmin } from '@/lib/auth';
 import { ok, catchErr } from '@/lib/utils';
 import { productSchema } from '@/validations/productValidation';
+import { assignMissingSkus, assignSkus } from '@/lib/sku';
 
 function slugify(value) {
   const slug = String(value || '')
@@ -46,6 +47,7 @@ export async function GET(req) {
       Product.find(filter).populate('category', 'name slug').skip(skip).limit(limit).sort({ createdAt: -1 }),
       Product.countDocuments(filter),
     ]);
+    await assignMissingSkus(products);
 
     return ok({ products, total, page, pages: Math.ceil(total / limit) });
   } catch (e) {
@@ -60,7 +62,8 @@ export async function POST(req) {
     const body = await req.json();
     const parsed = productSchema.parse(body);
     const slug = await uniqueProductSlug(parsed.name);
-    const product = await Product.create({ ...parsed, slug });
+    const product = new Product({ ...parsed, slug });
+    await assignSkus(product);
     return ok(product, 201);
   } catch (e) {
     return catchErr(e);

@@ -1,8 +1,11 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import ProductGrid from '@/components/user/ProductGrid';
-import { getCategoryView } from '@/lib/catalog';
-import { cleanCanonical } from '@/lib/canonical';
+import ProductFilters from '@/components/user/ProductFilters';
+import Pagination from '@/components/ui/Pagination';
+import { getCategoryView, getListingFacets, listFilteredProducts } from '@/lib/catalog';
+import { cleanCanonical, pageNumber } from '@/lib/canonical';
+import { clearedFilters, listingHref, parseListingFilters } from '@/lib/listingQuery';
 import { pageTitle } from '@/lib/storePath';
 import { metaDescription } from '@/lib/site';
 import { pageHead } from '@/lib/pageMeta';
@@ -38,22 +41,39 @@ export async function generateMetadata({ params, searchParams }) {
   });
 }
 
-export default async function CategoryPage({ params }) {
+export default async function CategoryPage({ params, searchParams }) {
   const { slug } = await params;
+  const sp = await searchParams;
+  const filters = { ...parseListingFilters(sp), categories: [] };
+  const pathname = `/categories/${slug}`;
   let view;
+  let listing;
+  let facets;
   try {
     view = await getCategoryView(slug);
+    if (view) {
+      [listing, facets] = await Promise.all([
+        listFilteredProducts({
+          page: pageNumber(sp?.page),
+          limit: 12,
+          categorySlug: slug,
+          filters,
+        }),
+        getListingFacets({ categorySlug: slug, search: filters.search }),
+      ]);
+    }
   } catch {
     return (
       <p className="px-4 py-16 text-center">This category is temporarily unavailable. Please try again.</p>
     );
   }
-  if (!view) notFound();
+  if (!view || !listing || !facets) notFound();
 
-  const { category, products: filtered, others: otherCategories } = view;
+  const { category, others: otherCategories } = view;
+  const clearHref = listingHref(pathname, clearedFilters(filters));
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 md:py-8">
+    <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 md:py-8 lg:px-8">
       <JsonLd
         data={breadcrumbSchema([
           { name: 'Home', href: '/' },
@@ -115,7 +135,7 @@ export default async function CategoryPage({ params }) {
           <div className="flex items-center gap-3">
             <span className="h-px w-8 bg-[var(--brand-gold,#D0B15A)]" />
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/80">
-              {filtered.length} {filtered.length === 1 ? 'piece' : 'pieces'}
+              {category.count} {category.count === 1 ? 'piece' : 'pieces'}
             </p>
           </div>
 
@@ -132,103 +152,34 @@ export default async function CategoryPage({ params }) {
         </div>
       </section>
 
-      {/* Toolbar — Result count + Sort */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h2 className="text-xl md:text-2xl font-bold text-gray-900">
-            All {category.name}
-          </h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Showing <span className="font-semibold text-gray-900">{filtered.length}</span> {filtered.length === 1 ? 'product' : 'products'}
-          </p>
-        </div>
-
-        <div className="flex w-full items-center gap-2 sm:w-auto">
-          {/* Sort dropdown (UI only) */}
-          <div className="relative min-w-0 flex-1 sm:flex-none">
-            <select
-              defaultValue="featured"
-              className="w-full appearance-none bg-white border border-gray-200 hover:border-gray-300
-                         rounded-xl pl-4 pr-10 py-2.5 text-sm font-medium text-gray-700
-                         focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500
-                         transition-colors cursor-pointer sm:w-auto"
-            >
-              <option value="featured">Featured</option>
-              <option value="price-low">Price: Low to High</option>
-              <option value="price-high">Price: High to Low</option>
-              <option value="rating">Top Rated</option>
-              <option value="newest">Newest First</option>
-            </select>
-            <svg
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+      <ProductFilters pathname={pathname} filters={filters} facets={facets} total={listing.total}>
+        {listing.products.length ? (
+          <ProductGrid products={listing.products} />
+        ) : (
+          <div className="rounded-3xl border border-black/[0.06] bg-[#faf7f3] px-6 py-16 text-center">
+            <h2 className="text-xl font-semibold text-neutral-950">No pieces match these filters</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-neutral-500">
+              {listing.total === 0 && category.count === 0
+                ? 'Nothing is listed in this category yet. Explore the rest of the edit.'
+                : 'Try another price, size, or colour, or clear the filters to see this collection.'}
+            </p>
+            {category.count === 0 ? (
+              <Link href="/categories" className="mt-6 inline-flex rounded-full bg-neutral-950 px-5 py-2.5 text-sm font-semibold text-white">
+                Browse categories
+              </Link>
+            ) : (
+              <Link href={clearHref} className="mt-6 inline-flex rounded-full bg-neutral-950 px-5 py-2.5 text-sm font-semibold text-white">
+                Clear filters
+              </Link>
+            )}
           </div>
-
-          {/* View toggle */}
-          <div className="hidden md:flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
-            <button aria-label="Grid view" className="p-2 rounded-lg bg-white shadow-sm text-gray-900">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-            </button>
-            <button aria-label="List view" className="p-2 rounded-lg text-gray-400 hover:text-gray-700 transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Active filter chips */}
-      <div className="flex flex-wrap items-center gap-2 mb-6">
-        <span className="text-xs text-gray-500 font-medium">Active:</span>
-        <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-purple-100 to-pink-100 
-                         text-purple-700 text-xs font-semibold px-3 py-1.5 rounded-full">
-          {category.name}
-          <button aria-label="Remove filter" className="hover:text-purple-900 transition-colors">
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </span>
-        <button className="text-xs text-gray-500 hover:text-gray-900 font-medium underline underline-offset-2">
-          Clear all
-        </button>
-      </div>
-
-      {/* Products */}
-      {filtered.length > 0 ? (
-        <ProductGrid products={filtered} />
-      ) : (
-        /* Empty state */
-        <div className="text-center py-20 px-6 rounded-3xl bg-gradient-to-br from-gray-50 to-white border border-gray-100">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 
-                          flex items-center justify-center">
-            <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-            </svg>
-          </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">No products found</h3>
-          <p className="text-gray-500 text-sm mb-6 max-w-md mx-auto">
-            We couldn't find any products in this category right now. Check back soon or explore other categories.
-          </p>
-          <Link
-            href="/categories"
-            className="inline-flex items-center gap-2 bg-gray-900 text-white font-semibold 
-                       px-6 py-3 rounded-full hover:bg-gray-800 transition-all duration-300
-                       hover:scale-105 active:scale-95"
-          >
-            Browse Categories
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-            </svg>
-          </Link>
-        </div>
-      )}
+        )}
+        <Pagination
+          current={listing.page}
+          total={listing.pages}
+          hrefFor={(page) => listingHref(pathname, filters, page)}
+        />
+      </ProductFilters>
 
       {/* Related categories */}
       {otherCategories.length > 0 && (

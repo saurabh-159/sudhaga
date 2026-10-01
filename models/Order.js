@@ -7,9 +7,17 @@ const OrderSchema = new mongoose.Schema(
       {
         product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
         name: String,
+        sku: String,
         price: Number,
         qty: Number,
         image: String,
+        options: [
+          {
+            name: String,
+            slug: String,
+            value: String,
+          },
+        ],
       },
     ],
     shipping: {
@@ -43,4 +51,8 @@ const OrderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.models.Order || mongoose.model('Order', OrderSchema);
+if (mongoose.models.Order) {
+  mongoose.deleteModel('Order');
+}
+
+export default mongoose.model('Order', OrderSchema);

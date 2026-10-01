@@ -97,9 +97,19 @@ export default function AdminOrderDetails() {
         </label>
         <ul className="mt-4 space-y-2">
           {(order.items || []).map((item, index) => (
-            <li key={index} className="flex justify-between text-sm text-neutral-700">
-              <span>{item.name} × {item.qty}</span>
-              <span>₹{Number(item.price || 0).toLocaleString('en-IN')}</span>
+            <li key={`${item.sku || item.name}-${index}`} className="rounded-xl border border-black/8 px-4 py-3">
+              <div className="flex items-start justify-between gap-3 text-sm">
+                <span className="font-medium text-neutral-900">{item.name}</span>
+                <span className="shrink-0 text-neutral-800">
+                  ₹{Number(item.price || 0).toLocaleString('en-IN')} × {item.qty}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-neutral-500">
+                SKU {item.sku || '—'}
+                {(item.options || []).length
+                  ? ` · ${item.options.map((option) => `${option.name}: ${option.value}`).join(' · ')}`
+                  : ''}
+              </p>
             </li>
           ))}
         </ul>

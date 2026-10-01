@@ -7,6 +7,7 @@ import { Heart, Menu, Search, ShoppingBag, User, X } from 'lucide-react';
 import { BRAND } from '@/lib/brand';
 import { api } from '@/lib/apiClient';
 import { useCatalog } from '@/components/user/CatalogProvider';
+import CartAddedNotice from '@/components/user/CartAddedNotice';
 import { lockBodyScroll } from '@/lib/scrollLock';
 import GoogleAuthButton from '@/components/user/GoogleAuthButton';
 
@@ -178,17 +179,20 @@ export default function Navbar() {
               ) : null}
             </div>
 
-            <button
-              type="button"
-              aria-label="Open bag"
-              onClick={openCart}
-              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-neutral-800 transition hover:bg-[#f3ebe3]"
-            >
-              <ShoppingBag className="h-[18px] w-[18px]" />
-              <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--brand-gold)] px-1 text-[10px] font-bold leading-none text-black">
-                {cartCount}
-              </span>
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                aria-label="Open bag"
+                onClick={openCart}
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-neutral-800 transition hover:bg-[#f3ebe3]"
+              >
+                <ShoppingBag className="h-[18px] w-[18px]" />
+                <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--brand-gold)] px-1 text-[10px] font-bold leading-none text-black">
+                  {cartCount}
+                </span>
+              </button>
+              <CartAddedNotice />
+            </div>
           </div>
         </div>
 
@@ -217,24 +221,26 @@ export default function Navbar() {
         className="hidden border-b border-black/[0.06] lg:block"
         aria-label="Categories"
       >
-        <div className="mx-auto flex max-w-[1400px] items-center justify-center gap-1 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1400px] overflow-x-auto px-4 scrollbar-hide sm:px-6 lg:px-8">
+          <div className="flex w-max min-w-full items-center justify-center gap-0.5">
           <Link
             href="/products"
-            className="group relative px-3.5 py-3 text-[12px] font-medium uppercase tracking-[0.14em] text-neutral-700 transition hover:text-black"
+            className="group relative shrink-0 px-3 py-3 text-[12px] font-medium uppercase tracking-[0.14em] text-neutral-700 transition hover:text-black xl:px-3.5"
           >
             All
-            <span className="absolute inset-x-3.5 bottom-0 h-[2px] origin-left scale-x-0 bg-[var(--brand-gold)] transition duration-200 group-hover:scale-x-100" />
+            <span className="absolute inset-x-3 bottom-0 h-[2px] origin-left scale-x-0 bg-[var(--brand-gold)] transition duration-200 group-hover:scale-x-100" />
           </Link>
           {categories.map((category) => (
             <Link
               key={category.id}
               href={`/categories/${category.slug}`}
-              className="group relative px-3.5 py-3 text-[12px] font-medium uppercase tracking-[0.14em] text-neutral-700 transition hover:text-black"
+              className="group relative shrink-0 px-3 py-3 text-[12px] font-medium uppercase tracking-[0.14em] text-neutral-700 transition hover:text-black xl:px-3.5"
             >
               {category.name}
-              <span className="absolute inset-x-3.5 bottom-0 h-[2px] origin-left scale-x-0 bg-[var(--brand-gold)] transition duration-200 group-hover:scale-x-100" />
+              <span className="absolute inset-x-3 bottom-0 h-[2px] origin-left scale-x-0 bg-[var(--brand-gold)] transition duration-200 group-hover:scale-x-100" />
             </Link>
           ))}
+          </div>
         </div>
       </nav>
 

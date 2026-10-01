@@ -43,7 +43,7 @@ export default async function CategoriesPage() {
   const totalPieces = categories.reduce((sum, category) => sum + category.count, 0);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 md:py-8">
+    <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 md:py-8 lg:px-8">
       <JsonLd
         data={breadcrumbSchema([
           { name: 'Home', href: '/' },

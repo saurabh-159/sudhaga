@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Heart, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { useCatalog } from '@/components/user/CatalogProvider';
 import { productPath } from '@/lib/storePath';
+import LineOptions from '@/components/user/LineOptions';
 import { lockBodyScroll } from '@/lib/scrollLock';
 
 function money(value) {
@@ -96,7 +97,7 @@ export default function CartDrawer() {
               {cartItems.map((item) => {
                 const saved = isWishlisted(item.id);
                 return (
-                  <li key={item.id} className="flex gap-3 rounded-2xl bg-white p-3 ring-1 ring-black/[0.05]">
+                  <li key={item.lineId || item.id} className="flex gap-3 rounded-2xl bg-white p-3 ring-1 ring-black/[0.05]">
                     <Link
                       href={productPath(item)}
                       onClick={closeCart}
@@ -112,6 +113,7 @@ export default function CartDrawer() {
                               {item.name}
                             </p>
                           </Link>
+                          <LineOptions options={item.options} sku={item.sku} />
                           <p className="mt-1 text-sm font-semibold text-neutral-950">{money(item.price)}</p>
                         </div>
                         <div className="flex shrink-0">
@@ -127,7 +129,7 @@ export default function CartDrawer() {
                           <button
                             type="button"
                             aria-label={`Remove ${item.name}`}
-                            onClick={() => removeFromCart(item.id)}
+                            onClick={() => removeFromCart(item.lineId || item.id)}
                             className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -140,7 +142,7 @@ export default function CartDrawer() {
                           <button
                             type="button"
                             aria-label="Decrease quantity"
-                            onClick={() => updateQty(item.id, item.qty - 1)}
+                            onClick={() => updateQty(item.lineId || item.id, item.qty - 1)}
                             className="flex h-8 w-8 items-center justify-center text-neutral-700 transition hover:bg-[#f3ebe3]"
                           >
                             <Minus className="h-3.5 w-3.5" />
@@ -149,7 +151,7 @@ export default function CartDrawer() {
                           <button
                             type="button"
                             aria-label="Increase quantity"
-                            onClick={() => updateQty(item.id, Math.min(20, item.qty + 1))}
+                            onClick={() => updateQty(item.lineId || item.id, Math.min(20, item.qty + 1))}
                             className="flex h-8 w-8 items-center justify-center text-neutral-700 transition hover:bg-[#f3ebe3]"
                           >
                             <Plus className="h-3.5 w-3.5" />

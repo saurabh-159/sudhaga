@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { api, cartLines, shapeCategory, shapeProduct } from '@/lib/apiClient';
+import { lineFromProduct, splitLineKey } from '@/lib/variants';
 import {
   mergeGuestBag,
   readGuestCart,
@@ -35,11 +36,14 @@ export function CatalogProvider({ children }) {
   const [wishlistIds, setWishlistIds] = useState([]);
   const [wishlistItems, setWishlistItems] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [cartNotice, setCartNotice] = useState(null);
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const userRef = useRef(null);
   const productsRef = useRef([]);
   const snapshotsRef = useRef(new Map());
+  const cartItemsRef = useRef([]);
+  const drawerOpenedRef = useRef(false);
 
   const remember = (product) => {
     if (!product) return;
@@ -62,7 +66,7 @@ export function CatalogProvider({ children }) {
         .map((row) => {
           const product = map.get(row.productId);
           if (!product) return null;
-          return { ...product, qty: row.qty, lineId: product.id };
+          return lineFromProduct(product, row);
         })
         .filter(Boolean),
     );
@@ -116,61 +120,99 @@ export function CatalogProvider({ children }) {
     };
   }, []);
 
-  const openCart = useCallback(() => setCartOpen(true), []);
-  const closeCart = useCallback(() => setCartOpen(false), []);
-
-  const addToCart = async (productId, qty = 1, snapshot) => {
-    const id = String(productId);
-    const amount = Math.max(1, Math.min(20, Number(qty) || 1));
-    const known = snapshot ? [{ ...snapshot, id }] : [];
-    if (userRef.current) {
-      const cart = await api('/api/cart', {
-        method: 'POST',
-        body: JSON.stringify({ productId: id, qty: amount }),
-      });
-      setCartItems(cartLines(cart));
-      setCartOpen(true);
-      return;
-    }
-    const next = readGuestCart();
-    const hit = next.find((row) => row.productId === id);
-    if (hit) hit.qty = Math.min(20, hit.qty + amount);
-    else next.push({ productId: id, qty: amount });
-    writeGuestCart(next);
-    await applyGuest(productsRef.current, known);
+  const openCart = useCallback(() => {
+    setCartNotice(null);
     setCartOpen(true);
+  }, []);
+  const closeCart = useCallback(() => setCartOpen(false), []);
+  const dismissCartNotice = useCallback(() => setCartNotice(null), []);
+
+  useEffect(() => {
+    cartItemsRef.current = cartItems;
+    if (cartItems.length === 0) drawerOpenedRef.current = false;
+  }, [cartItems]);
+
+  const showAddedNotice = (snapshot) => {
+    setCartNotice({
+      key: Date.now(),
+      name: snapshot?.name || 'Item',
+      image: snapshot?.image || '',
+    });
   };
 
-  const updateQty = async (productId, qty) => {
+  const addToCart = async (productId, qty = 1, snapshot, variant, behavior = {}) => {
     const id = String(productId);
+    const amount = Math.max(1, Math.min(20, Number(qty) || 1));
+    const sku = variant?.sku || snapshot?.sku || '';
+    const options = variant?.options || [];
+    const known = snapshot ? [{ ...snapshot, id }] : [];
+    const storedEmpty = userRef.current
+      ? cartItemsRef.current.length === 0
+      : readGuestCart().length === 0;
+    const wasEmpty = storedEmpty && !drawerOpenedRef.current;
+    if (wasEmpty) drawerOpenedRef.current = true;
+
+    try {
+      if (userRef.current) {
+        const cart = await api('/api/cart', {
+          method: 'POST',
+          body: JSON.stringify({ productId: id, qty: amount, sku, options }),
+        });
+        const lines = cartLines(cart);
+        cartItemsRef.current = lines;
+        setCartItems(lines);
+      } else {
+        const next = readGuestCart();
+        const hit = next.find((row) => row.productId === id && (row.sku || '') === sku);
+        if (hit) hit.qty = Math.min(20, hit.qty + amount);
+        else next.push({ productId: id, qty: amount, sku, options });
+        writeGuestCart(next);
+        await applyGuest(productsRef.current, known);
+      }
+    } catch (error) {
+      if (wasEmpty && (userRef.current ? cartItemsRef.current.length === 0 : readGuestCart().length === 0)) {
+        drawerOpenedRef.current = false;
+      }
+      throw error;
+    }
+
+    if (behavior.quiet) return;
+    if (wasEmpty) setCartOpen(true);
+    else showAddedNotice(snapshot);
+  };
+
+  const updateQty = async (lineId, qty) => {
+    const { productId, sku } = splitLineKey(lineId);
     if (userRef.current) {
       const cart = await api('/api/cart', {
         method: 'PUT',
-        body: JSON.stringify({ productId: id, qty }),
+        body: JSON.stringify({ productId, sku, qty }),
       });
       setCartItems(cartLines(cart));
       return;
     }
     const next = readGuestCart()
       .map((row) =>
-        row.productId === id ? { ...row, qty: Math.min(20, Math.max(0, Number(qty) || 0)) } : row,
+        row.productId === productId && (row.sku || '') === sku
+          ? { ...row, qty: Math.min(20, Math.max(0, Number(qty) || 0)) }
+          : row,
       )
       .filter((row) => row.qty > 0);
     writeGuestCart(next);
     await applyGuest(productsRef.current);
   };
 
-  const removeFromCart = async (productId) => {
-    const id = String(productId);
+  const removeFromCart = async (lineId) => {
+    const { productId, sku } = splitLineKey(lineId);
     if (userRef.current) {
       const cart = await api('/api/cart', {
         method: 'DELETE',
-        body: JSON.stringify({ productId: id }),
+        body: JSON.stringify({ productId, sku }),
       });
       setCartItems(cartLines(cart));
       return;
     }
-    writeGuestCart(readGuestCart().filter((row) => row.productId !== id));
+    writeGuestCart(readGuestCart().filter((row) => !(row.productId === productId && (row.sku || '') === sku)));
     await applyGuest(productsRef.current);
   };
 
@@ -178,7 +220,10 @@ export function CatalogProvider({ children }) {
     if (userRef.current) {
       await Promise.all(
         cartItems.map((item) =>
-          api('/api/cart', { method: 'DELETE', body: JSON.stringify({ productId: item.id }) }),
+          api('/api/cart', {
+            method: 'DELETE',
+            body: JSON.stringify(splitLineKey(item.lineId)),
+          }),
         ),
       );
       setCartItems([]);
@@ -216,8 +261,10 @@ export function CatalogProvider({ children }) {
         cartCount,
         cartItems,
         cartOpen,
+        cartNotice,
         openCart,
         closeCart,
+        dismissCartNotice,
         wishlistIds,
         wishlistItems,
         user,
@@ -245,8 +292,10 @@ export function useCatalog() {
       cartCount: 0,
       cartItems: [],
       cartOpen: false,
+      cartNotice: null,
       openCart: () => {},
       closeCart: () => {},
+      dismissCartNotice: () => {},
       wishlistIds: [],
       wishlistItems: [],
       user: null,

@@ -17,6 +17,7 @@ export const productSchema = z.object({
   attributes: z
     .array(
       z.object({
+        sku: z.string().max(40).optional(),
         price: z.number().min(0),
         options: z
           .array(

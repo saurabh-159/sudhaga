@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { productPath } from '@/lib/storePath';
+import LineOptions from '@/components/user/LineOptions';
 import { Heart, Minus, Plus, Trash2 } from 'lucide-react';
 
 export default function CartItem({ item, onRemove, onQtyChange }) {
@@ -42,13 +43,7 @@ export default function CartItem({ item, onRemove, onQtyChange }) {
                 {item.name}
               </h3>
             </Link>
-            <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[11px] text-neutral-500">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f6f1ea] px-2.5 py-1">
-                <span className="h-2 w-2 rounded-full bg-neutral-900" />
-                Black
-              </span>
-              <span className="rounded-full bg-[#f6f1ea] px-2.5 py-1">Size M</span>
-            </div>
+            <LineOptions options={item.options} sku={item.sku} />
           </div>
 
           <div className="flex shrink-0 gap-1">
@@ -61,7 +56,7 @@ export default function CartItem({ item, onRemove, onQtyChange }) {
             </button>
             <button
               type="button"
-              onClick={() => onRemove(item.id)}
+              onClick={() => onRemove(item.lineId || item.id)}
               aria-label="Remove item"
               className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
             >
@@ -74,7 +69,7 @@ export default function CartItem({ item, onRemove, onQtyChange }) {
           <div className="inline-flex items-center overflow-hidden rounded-full border border-black/10 bg-[#faf7f3]">
             <button
               type="button"
-              onClick={() => onQtyChange(item.id, item.qty - 1)}
+              onClick={() => onQtyChange(item.lineId || item.id, item.qty - 1)}
               aria-label="Decrease quantity"
               className="flex h-9 w-9 items-center justify-center text-neutral-700 transition hover:bg-[#f3ebe3]"
             >
@@ -85,7 +80,7 @@ export default function CartItem({ item, onRemove, onQtyChange }) {
             </span>
             <button
               type="button"
-              onClick={() => onQtyChange(item.id, item.qty + 1)}
+              onClick={() => onQtyChange(item.lineId || item.id, item.qty + 1)}
               aria-label="Increase quantity"
               className="flex h-9 w-9 items-center justify-center text-neutral-700 transition hover:bg-[#f3ebe3]"
             >

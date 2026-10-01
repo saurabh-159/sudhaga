@@ -5,6 +5,8 @@ import Product from '@/models/Product';
 import { requireAuth } from '@/lib/auth';
 import { ok, catchErr } from '@/lib/utils';
 import { lineCap } from '@/lib/pricing';
+import { assignSkus, needsSku } from '@/lib/sku';
+import { hasVariants, plainOptions, resolveCartVariant, skuWithOptions } from '@/lib/variants';
 
 export async function POST(req) {
   try {
@@ -17,13 +19,24 @@ export async function POST(req) {
     for (const row of Array.isArray(items) ? items : []) {
       const productId = String(row?.productId || '');
       if (!mongoose.Types.ObjectId.isValid(productId)) continue;
-      const product = await Product.findById(productId).select('_id stock');
+      let product = await Product.findById(productId);
       if (!product) continue;
+      if (needsSku(product)) product = await assignSkus(product);
+      const pickedOptions = plainOptions(row.options);
+      const variant = hasVariants(product)
+        ? resolveCartVariant(product, row.sku || '')
+        : {
+            sku: skuWithOptions(product.sku, pickedOptions) || product.sku,
+            options: pickedOptions,
+          };
+      if (!variant?.sku) continue;
       const qty = Math.max(1, Math.min(lineCap(product.stock), Number(row.qty) || 1));
       if (lineCap(product.stock) < 1) continue;
-      const existing = cart.items.find((item) => item.product.toString() === productId);
+      const existing = cart.items.find(
+        (item) => item.product.toString() === productId && String(item.sku || '') === variant.sku,
+      );
       if (existing) existing.qty = Math.min(lineCap(product.stock), existing.qty + qty);
-      else cart.items.push({ product: productId, qty });
+      else cart.items.push({ product: productId, qty, sku: variant.sku, options: variant.options });
     }
 
     await cart.save();

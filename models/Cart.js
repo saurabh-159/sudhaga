@@ -7,10 +7,22 @@ const CartSchema = new mongoose.Schema(
       {
         product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
         qty: { type: Number, default: 1 },
+        sku: { type: String, default: '' },
+        options: [
+          {
+            name: String,
+            slug: String,
+            value: String,
+          },
+        ],
       },
     ],
   },
   { timestamps: true }
 );
 
-export default mongoose.models.Cart || mongoose.model('Cart', CartSchema);
+if (mongoose.models.Cart) {
+  mongoose.deleteModel('Cart');
+}
+
+export default mongoose.model('Cart', CartSchema);

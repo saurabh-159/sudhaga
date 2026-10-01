@@ -5,6 +5,12 @@ import Product from '@/models/Product';
 import { requireAuth } from '@/lib/auth';
 import { ok, err, catchErr } from '@/lib/utils';
 import { lineCap } from '@/lib/pricing';
+import { assignSkus, needsSku } from '@/lib/sku';
+import { hasVariants, plainOptions, resolveCartVariant, skuWithOptions } from '@/lib/variants';
+
+function sameLine(item, productId, sku) {
+  return String(item.product) === String(productId) && String(item.sku || '') === String(sku || '');
+}
 
 export async function GET() {
   try {
@@ -22,20 +28,32 @@ export async function POST(req) {
   try {
     const user = await requireAuth();
     await connectDB();
-    const { productId, qty = 1 } = await req.json();
+    const { productId, qty = 1, sku = '', options = [] } = await req.json();
     if (!mongoose.Types.ObjectId.isValid(productId)) return err('Product not found', 404);
-    const product = await Product.findById(productId).select('_id stock');
+    let product = await Product.findById(productId);
     if (!product) return err('Product not found', 404);
+    if (needsSku(product)) product = await assignSkus(product);
+
+    const pickedOptions = plainOptions(options);
+    const variant = hasVariants(product)
+      ? resolveCartVariant(product, sku)
+      : {
+          sku: skuWithOptions(product.sku, pickedOptions) || product.sku,
+          price: Number(product.price) || 0,
+          options: pickedOptions,
+        };
+    if (!variant?.sku) return err('Choose a colour and size');
 
     let cart = await Cart.findOne({ user: user.id });
     if (!cart) cart = await Cart.create({ user: user.id, items: [] });
 
-    const existing = cart.items.find((i) => i.product.toString() === productId);
+    const existing = cart.items.find((item) => sameLine(item, productId, variant.sku));
     const room = lineCap(product.stock) - (existing?.qty || 0);
     if (room < 1) return err('Not enough stock');
     const amount = Math.max(1, Math.min(room, Number(qty) || 1));
+    const picked = plainOptions(variant.options.length ? variant.options : pickedOptions);
     if (existing) existing.qty += amount;
-    else cart.items.push({ product: productId, qty: amount });
+    else cart.items.push({ product: productId, qty: amount, sku: variant.sku, options: picked });
 
     await cart.save();
     await cart.populate('items.product');
@@ -49,15 +67,15 @@ export async function PUT(req) {
   try {
     const user = await requireAuth();
     await connectDB();
-    const { productId, qty } = await req.json();
+    const { productId, sku = '', qty } = await req.json();
     const cart = await Cart.findOne({ user: user.id });
     if (!cart) return ok({ items: [] });
 
-    const existing = cart.items.find((i) => i.product.toString() === productId);
+    const existing = cart.items.find((item) => sameLine(item, productId, sku));
     if (!existing) return ok(cart);
     const nextQty = Number(qty);
     if (!Number.isFinite(nextQty) || nextQty < 1) {
-      cart.items = cart.items.filter((i) => i.product.toString() !== productId);
+      cart.items = cart.items.filter((item) => !sameLine(item, productId, sku));
     } else {
       const product = await Product.findById(productId).select('stock');
       const cap = lineCap(product?.stock);
@@ -77,12 +95,12 @@ export async function DELETE(req) {
   try {
     const user = await requireAuth();
     await connectDB();
-    const { productId } = await req.json();
+    const { productId, sku = '' } = await req.json();
 
     const cart = await Cart.findOne({ user: user.id });
     if (!cart) return ok({ message: 'Empty' });
 
-    cart.items = cart.items.filter((i) => i.product.toString() !== productId);
+    cart.items = cart.items.filter((item) => !sameLine(item, productId, sku));
     await cart.save();
     await cart.populate('items.product');
     return ok(cart);
